@@ -3,10 +3,5 @@
   "version": "1.0.0",
   "description": "A package for Halacha watch on T-Display S3",
   "dependencies": {},
-  "files": [
-    "main.py",
-    "lib/*",
-    "config/*"
-  ],
   "repository": "github:sgbmzm/Halacha-T-S3"
 }
