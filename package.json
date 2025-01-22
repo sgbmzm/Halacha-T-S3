@@ -4,6 +4,6 @@
   "description": "A package for Halacha watch on T-Display S3",
   "dependencies": {},
   "files": [
-    "*"
+    "github:sgbmzm/Halacha-T-S3/blob/main/ds3231.py"
   ]
 }
