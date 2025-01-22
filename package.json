@@ -1,9 +1,6 @@
 {
-  "name": "Halacha-T-S3",
-  "version": "1.0.0",
-  "description": "A package for Halacha watch on T-Display S3",
-  "dependencies": {},
-  "files": [
-    "github:sgbmzm/Halacha-T-S3/blob/main/ds3231.py"
-  ]
+  "urls": [
+    ["blob/main/ds3231.py", "github:sgbmzm/Halacha-T-S3/blob/main/ds3231.py"]
+  ],
+  "version": "0.1"
 }
