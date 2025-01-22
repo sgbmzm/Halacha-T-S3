@@ -1,6 +1,6 @@
 {
   "urls": [
-    ["drivers/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
+    ["ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
     ["drivers/main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
     ["drivers/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
     ["drivers/miriam40.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam40.py"],
