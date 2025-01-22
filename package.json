@@ -6,5 +6,7 @@
   "files": [
     "main.py",
     "lib/*",
-  ]
+    "config/*"
+  ],
+  "repository": "github:sgbmzm/Halacha-T-S3"
 }
