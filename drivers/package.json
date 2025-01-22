@@ -1,0 +1,9 @@
+{
+  "name": "Halacha-T-S3",
+  "version": "1.0.0",
+  "description": "A package for Halacha watch on T-Display S3",
+  "dependencies": {},
+  "files": [
+    "*"
+  ]
+}
