@@ -1,7 +1,7 @@
 {
   "urls": [
     ["Halacha_watch/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
-    ["Halacha_watch/main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
+    ["main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
     ["Halacha_watch/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
     ["Halacha_watch/miriam40.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam40.py"],
     ["Halacha_watch/moonphase.py", "github:sgbmzm/Halacha-T-S3/drivers/moonphase.py"],
