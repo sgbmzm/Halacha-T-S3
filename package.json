@@ -1,13 +1,13 @@
 {
   "urls": [
-    ["ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
-    ["drivers/main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
-    ["drivers/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
-    ["drivers/miriam40.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam40.py"],
-    ["drivers/moonphase.py", "github:sgbmzm/Halacha-T-S3/drivers/moonphase.py"],
-    ["drivers/sun_moon.py", "github:sgbmzm/Halacha-T-S3/drivers/sun_moon.py"],
-    ["drivers/tft_buttons.py", "github:sgbmzm/Halacha-T-S3/drivers/tft_buttons.py"],
-    ["drivers/tft_config.py", "github:sgbmzm/Halacha-T-S3/drivers/tft_config.py"],
+    ["Halacha_watch/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
+    ["Halacha_watch/main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
+    ["Halacha_watch/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
+    ["Halacha_watch/miriam40.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam40.py"],
+    ["Halacha_watch/moonphase.py", "github:sgbmzm/Halacha-T-S3/drivers/moonphase.py"],
+    ["Halacha_watch/sun_moon.py", "github:sgbmzm/Halacha-T-S3/drivers/sun_moon.py"],
+    ["Halacha_watch/tft_buttons.py", "github:sgbmzm/Halacha-T-S3/drivers/tft_buttons.py"],
+    ["Halacha_watch/tft_config.py", "github:sgbmzm/Halacha-T-S3/drivers/tft_config.py"],
   ],
   "version": "0.1"
 }
