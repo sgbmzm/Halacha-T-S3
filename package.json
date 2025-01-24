@@ -3,6 +3,8 @@
     ["halacha_clock/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
     ["main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
     ["halacha_clock/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
+    ["halacha_clock/miriam25.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam25.py"],
+    ["halacha_clock/miriam30.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam30.py"],
     ["halacha_clock/miriam40.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam40.py"],
     ["halacha_clock/moonphase.py", "github:sgbmzm/Halacha-T-S3/drivers/moonphase.py"],
     ["halacha_clock/sun_moon.py", "github:sgbmzm/Halacha-T-S3/drivers/sun_moon.py"],
