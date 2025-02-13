@@ -226,10 +226,10 @@ def get_ntp_time():
                     print(f"שגיאה בקבלת הזמן מהרשת {ssid}: {ntp_error}")
                     wlan.disconnect()  # ניתוק בלבד, ננסה רשת אחרת
 
-        raise Exception("לא ניתן היה לקבל את הזמן משרת NTP מאף רשת")
+        raise Exception("כשלון בקבלת הזמן משרת בכל רשת")
 
     except Exception as error:
-        return f"שגיאה: {str(error)}"
+        return f"{str(error)}"
 
     finally:
         wlan.active(False)  # כיבוי ה-WiFi תמיד בסוף, בין אם הצלחנו או נכשלנו
@@ -311,7 +311,7 @@ def sync_rtc_with_ds3231(update_ds3231_from_ntp = False):
                 # הדפסה למסך
                 tft.fill(0) # מחיקת המסך
                 tft.write(FontHeb25,f'{reverse("בתהליך עדכון השעון...")}',0,55)
-                tft.write(FontHeb20,f'{reverse("מחפש רשת פתוחה...")}',0,75)
+                tft.write(FontHeb20,f'{reverse("מחפש רשת ללא סיסמה...")}',0,75)
                 tft.show() # כדי להציג את הנתונים על המסך
                 
                         
@@ -343,7 +343,8 @@ def sync_rtc_with_ds3231(update_ds3231_from_ntp = False):
                     
                 except Exception as error:
                     tft.write(FontHeb25,f'{reverse("שגיאה בעדכון השעון")}',30,95)
-                    tft.write(FontHeb20,f'{str(error)}',30,115)
+                    tft.write(FontHeb20,f'{str(error)}',0,115)
+                    tft.write(FontHeb20,f'{reverse(ntp_time)}',0,140)
                     tft.show() # כדי להציג את הנתונים על המסך
                     time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
                     print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
@@ -1321,6 +1322,7 @@ while True:
             
 
     ##########################################################################################################################
+
 
 
 
