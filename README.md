@@ -1,5 +1,15 @@
 # Halacha-watch-T-DISPLAY-S3
 
+## hardware
+
+The hardware needed is:
+This microcontroller:
+https://lilygo.cc/products/t-display-s3?variant=42284559827125
+solder 5 pins to it for an RTC clock called: DS3231 MINI
+G+NC+16+21+17 (next to each other)
+(DS3231 MINI can be purchased separately on AliExpress and includes a backup battery for the clock)
+
+
 ## License  
 **The file `main_shemesh_s3` is for personal use only!**  
 **Modification is strictly prohibited.** You may use it as-is, but you may not edit, modify, or alter its content.  
@@ -7,13 +17,23 @@
 
 Other files in this repository may have different licensing terms.
 
+## INSTALL
+
+First install (using Tony) the file:
+https://github.com/sgbmzm/Halacha-T-S3/blob/main/rom/firmware_t_display_s3_s3lcd.bin
+or directly from here:
+https://github.com/russhughes/s3lcd/blob/main/firmware/GENERIC_S3_OCT_16M/firmware.bin
+
+Then connect to WIFI and install the necessary files using the following code:
+
+
 ```
 import network
 import time
 
 # פרטי הרשת שלך
-SSID = "SSID_NAME"
-PASSWORD = "123456789"
+SSID = "SSID_NAME" # Enter your network name (as string).
+PASSWORD = "123456789" # Enter your network password (as string).
 
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)  # מצב תחנת WiFi
