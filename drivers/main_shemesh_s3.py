@@ -338,6 +338,8 @@ def sync_rtc_with_ds3231(update_ds3231_from_ntp = False):
                     time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
 
                     print("זמן שרת עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
+                    # קריאה חוזרת לפונקצייה זו כדי שהשעון הפנימי יהיה מעודכן בזמן החדש
+                    return sync_rtc_with_ds3231(update_ds3231_from_ntp = False)
                     
                 except Exception as error:
                     tft.write(FontHeb25,f'{reverse("שגיאה בעדכון השעון")}',30,95)
@@ -345,6 +347,9 @@ def sync_rtc_with_ds3231(update_ds3231_from_ntp = False):
                     tft.show() # כדי להציג את הנתונים על המסך
                     time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
                     print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
+                    # אם השעון החיצוני לא עודכן מעולם ולכן הוא בשנת 2000 אז צריך לקרוא שוב ושוב לפונקציית העדכון עד שהשעון החיצוני יעודכן
+                    if ds3231_time[0] < 2016:
+                        return sync_rtc_with_ds3231(update_ds3231_from_ntp = True)
 
             
             elif update_ds3231_manually:
