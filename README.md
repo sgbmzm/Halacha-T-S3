@@ -16,7 +16,7 @@ I would especially like to mention and thank the following important things that
 The hardware needed is:
 This microcontroller:
 https://lilygo.cc/products/t-display-s3?variant=42284559827125
-solder 5 pins to it for an RTC clock called: DS3231 MINI
+solder 5 pins to it for an RTC clock called: **DS3231 MINI**
 G+NC+16+21+17 (next to each other)
 (DS3231 MINI can be purchased separately on AliExpress and includes a backup battery for the clock)
 
