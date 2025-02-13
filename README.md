@@ -9,8 +9,7 @@ Other files in this repository may have different licensing terms.
 
 I would especially like to mention and thank the following important things that are freely licensed and I use them:
 1. https://github.com/russhughes/s3lcd/blob/main/firmware/GENERIC_S3_OCT_16M/firmware.bin
-2.
-https://github.com/peterhinch/micropython-samples/tree/d2929df1b4556e71fcfd7d83afd9cf3ffd98fdac/astronomy
+2. https://github.com/peterhinch/micropython-samples/tree/d2929df1b4556e71fcfd7d83afd9cf3ffd98fdac/astronomy
 
 ## hardware
 
