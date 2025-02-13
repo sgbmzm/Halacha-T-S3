@@ -210,7 +210,7 @@ def get_ntp_time():
                 try:
                     # ניסיון לקבלת זמן משרת NTP
                     ntptime.host = "pool.ntp.org"
-                    ntptime.timeout = 2
+                    ntptime.timeout = 1
                     # קבלת הזמן מהשרת בפורמט של חותמת זמן. הזמן המתקבל הוא בשעון גריניץ כלומר UTC-0
                     ntp_timestamp_utc = ntptime.time()
                     # המרת הזמן לשעון בישראל
