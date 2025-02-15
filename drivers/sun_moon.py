@@ -14,6 +14,8 @@
 
 # Moon phase now in separate module
 
+## Changes made by Simcha Gershon Bohrer marked with ##
+
 import time
 from math import sin, cos, sqrt, fabs, atan, radians, floor, pi
 
@@ -178,6 +180,9 @@ class RiSet:
     # Riset.mtime() returns machine time as an int. The class variable tim is for
     # test purposes only and allows the hardware clock to be overridden
     tim = None
+    ## For sunrise and sunset time search: What is the height of the sun above the horizon at sunrise or sunset.
+    ##The normal default is -0.833 for normal sunrise and sunset
+    sinho_sun_riset = -0.833 ## 
 
     @classmethod
     def mtime(cls):
@@ -371,7 +376,7 @@ class RiSet:
         if tl:
             sinho = -self.tlight
         else:
-            sinho = sin(radians(-0.833)) if sun else sin(radians(8 / 60))
+            sinho = sin(radians(sinho_sun_riset)) if sun else sin(radians(8 / 60)) ## sinho_sun_riset
         # moonrise taken as centre of moon at +8 arcmin
         # sunset upper limb simple refraction
         # The loop finds the sin(alt) for sets of three consecutive
