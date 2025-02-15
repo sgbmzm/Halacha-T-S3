@@ -397,13 +397,13 @@ def calculate_temporal_time(timestamp, sunrise_timestamp, sunset_timestamp):
         day_or_night_length_seconds = sunset_timestamp - sunrise_timestamp if is_day else sunrise_timestamp - sunset_timestamp
         
         # חישוב מספר השניות בשעה זמנית אחת של היום לפי חלוקת אורך היום או הלילה ל 12
-        seconds_per_hour_in_day_or_night = day_or_night_length_seconds / 12
+        seconds_per_temporal_hour_in_day_or_night = day_or_night_length_seconds / 12
         
         # חישוב כמה שניות עברו מאז הזריחה או השקיעה עד הזמן הנוכחי 
         time_since_last_sunrise_or_sunset = timestamp - (sunrise_timestamp if is_day else sunset_timestamp)
         
         # המרת השניות לפורמט שעות, דקות ושניות
-        A = (time_since_last_sunrise_or_sunset / seconds_per_hour_in_day_or_night) + 0.0000001
+        A = (time_since_last_sunrise_or_sunset / seconds_per_temporal_hour_in_day_or_night) + 0.0000001
         zmanit_hour = int(A)
         B = ((A - zmanit_hour) * 60) + 0.0000001
         zmanit_minute = int(B)
@@ -413,8 +413,7 @@ def calculate_temporal_time(timestamp, sunrise_timestamp, sunset_timestamp):
         # הדפסת השעה הזמנית המתאימה בפורמט שעות:דקות:שניות
         temporal_time = f'{zmanit_hour:02.0f}:{zmanit_minute:02.0f}:{zmanit_second:02.0f}'
         
-        return temporal_time
-
+        return temporal_time, seconds_per_temporal_hour_in_day_or_night
 
 
 # פונקצייה לחישוב שעון המגרב או שעון ארץ ישראל כלומר כמה זמן עבר מהשקיעה האחרונה עד הרגע הנוכחי
@@ -921,7 +920,7 @@ def center(text, font):
 esberim = [
     
         ["שמחה גרשון בורר - כוכבים וזמנים", ""],
-        [reverse("sgbmzm@gmail.com  "), ""],
+        [reverse("sgbmzm@gmail.com  "), "052-7661249"],
         ["כל הזכויות שמורות - להלן הסברים", ""],
         ["כשהשעון מכוון: דיוק הזמנים 01 שניות", ""],
         ["דיוק הירח הוא כדקה", ""],
@@ -1034,6 +1033,7 @@ def main():
         
     # יצירת אובייקט RiSet
     RiSet.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
+    RiSet.sinho_sun_riset = 0.0 # אם רוצים שזריחה ושקיעה של השמש יהיו לפי זריחה ושקיעה גיאומטריים ולא לפי מינוס 0.833. אם לא מגדירים אז כברירת מחדל יהיה 0.833 מינוס
     riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, tl=MGA_deg) # lto=location_offset_hours
     
     
@@ -1081,11 +1081,13 @@ def main():
         sunrise_timestamp, sunset_timestamp = get_sunrise_sunset_timestamps(current_timestamp, is_gra = True)
          
         # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
-        temporal_time = calculate_temporal_time(current_timestamp, sunrise_timestamp, sunset_timestamp)
+        temporal_time, seconds_in_temporal_hour = calculate_temporal_time(current_timestamp, sunrise_timestamp, sunset_timestamp)
+        minutes_in_temporal_hour = str(round(seconds_in_temporal_hour / 60)) # str(convert_seconds(seconds_in_temporal_hour))
              
     else:
         
         temporal_time = reverse("שגיאה  ")
+        minutes_in_temporal_hour = ""
         
     
     # רק אם רוצים ואפשר לחשב זריחות ושקיעות לפי מגן אברהם
@@ -1099,11 +1101,12 @@ def main():
             mga_sunrise_timestamp, mga_sunset_timestamp = get_sunrise_sunset_timestamps(current_timestamp, is_gra = False)
              
             # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
-            mga_temporal_time = calculate_temporal_time(current_timestamp, mga_sunrise_timestamp, mga_sunset_timestamp)
-            
+            mga_temporal_time, seconds_in_mga_temporal_hour = calculate_temporal_time(current_timestamp, mga_sunrise_timestamp, mga_sunset_timestamp)
+            minutes_in_mga_temporal_hour = str(round(seconds_in_mga_temporal_hour / 60)) # str(convert_seconds(seconds_in_mga_temporal_hour))
         else:
             
             mga_temporal_time = reverse("שגיאה  ")
+            minutes_in_mga_temporal_hour = ""
             
             
     ###############################################################
@@ -1133,6 +1136,7 @@ def main():
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,55)
+    tft.write(FontHeb20,f'                  {mga_minutes_in_temporal_hour}                           {minutes_in_temporal_hour}',0,70, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
