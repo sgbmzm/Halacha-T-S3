@@ -34,7 +34,7 @@ def update_software():
         
         # אם אין רשתות פתוחות מפסיקים את הניסיון
         if not open_networks:
-            return "לא נמצאו רשתות פתוחות!"
+            return "לא נמצאה בסביבה רשת ללא סיסמה!"
         
         for net in open_networks:
             
@@ -83,14 +83,18 @@ def update_software():
 
 
 # הדפסה למסך
+# הדפסה למסך
 tft.fill(0) # מחיקת המסך
-tft.write(FontHeb25,f'{reverse("בתהליך עדכון התוכנה...")}',0,55)
-tft.write(FontHeb20,f'{reverse("מחפש רשת ללא סיסמה...")}',0,75)
+tft.write(FontHeb25,f'{reverse("בתהליך עדכון התוכנה...")}',20,15)
+tft.write(FontHeb20,f'{reverse("המתן בסבלנות להודעה נוספת")}',10,35)
+tft.show() # כדי להציג את הנתונים על המסך
 DDD = update_software()
-tft.write(FontHeb20,f'{reverse(DDD)}',0,95)
-tft.write(FontHeb25,f'{reverse("לחץ על כפתור האיפוס")}',0,110)
+tft.write(FontHeb20,f'{reverse(DDD)}',0,75)
+tft.write(FontHeb20,f'{reverse("בעוד 5 שניות המכשיר יופעל מחדש")}',0,110)
 tft.show() # כדי להציג את הנתונים על המסך
 time.sleep(5)
+machine.reset()
    
+
 
 
