@@ -1033,7 +1033,7 @@ def main():
         
     # יצירת אובייקט RiSet
     RiSet.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
-    RiSet.sinho_sun_riset = 0.0 # אם רוצים שזריחה ושקיעה של השמש יהיו לפי זריחה ושקיעה גיאומטריים ולא לפי מינוס 0.833. אם לא מגדירים אז כברירת מחדל יהיה 0.833 מינוס
+    #RiSet.sinho_sun_riset = 0.0 # אם רוצים שזריחה ושקיעה של השמש יהיו לפי זריחה ושקיעה גיאומטריים ולא לפי מינוס 0.833. אם לא מגדירים אז כברירת מחדל יהיה 0.833 מינוס
     riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, tl=MGA_deg) # lto=location_offset_hours
     
     
