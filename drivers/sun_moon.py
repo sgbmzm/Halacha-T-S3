@@ -376,7 +376,7 @@ class RiSet:
         if tl:
             sinho = -self.tlight
         else:
-            sinho = sin(radians(sinho_sun_riset)) if sun else sin(radians(8 / 60)) ## sinho_sun_riset
+            sinho = sin(radians(cls.sinho_sun_riset)) if sun else sin(radians(8 / 60)) ## sinho_sun_riset
         # moonrise taken as centre of moon at +8 arcmin
         # sunset upper limb simple refraction
         # The loop finds the sin(alt) for sets of three consecutive
