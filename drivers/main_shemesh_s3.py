@@ -920,7 +920,7 @@ def center(text, font):
 esberim = [
     
         ["שמחה גרשון בורר - כוכבים וזמנים", ""],
-        [reverse("sgbmzm@gmail.com  "), "052-7661249"],
+        [reverse("052-7661249 - sgbmzm@gmail.com  "), ""],
         ["כל הזכויות שמורות - להלן הסברים", ""],
         ["כשהשעון מכוון: דיוק הזמנים 01 שניות", ""],
         ["דיוק הירח הוא כדקה", ""],
@@ -1136,7 +1136,7 @@ def main():
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,55)
-    tft.write(FontHeb20,f'                  {mga_minutes_in_temporal_hour}                           {minutes_in_temporal_hour}',0,70, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,70, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
@@ -1327,6 +1327,7 @@ while True:
             
 
     ##########################################################################################################################
+
 
 
 
