@@ -4,7 +4,7 @@
     ["halacha_clock/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
     ["halacha_clock/gematria_pyluach.py", "github:sgbmzm/Halacha-T-S3/drivers/gematria_pyluach.py"],
     ["main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
-    ["update_halacha_clock.py", "github:sgbmzm/Halacha-T-S3/drivers/update_halacha_clock.py"],
+    ["halacha_clock/update_halacha_clock.py", "github:sgbmzm/Halacha-T-S3/drivers/update_halacha_clock.py"],
     ["halacha_clock/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
     ["halacha_clock/miriam25.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam25.py"],
     ["halacha_clock/miriam30.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam30.py"],
