@@ -34,7 +34,7 @@ def update_software():
         
         # אם אין רשתות פתוחות מפסיקים את הניסיון
         if not open_networks:
-            return "לא נמצאה בסביבה רשת ללא סיסמה!"
+            return "לא נמצאה בסביבה רשת ללא סיסמה!!!"
         
         for net in open_networks:
             
