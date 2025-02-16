@@ -51,7 +51,7 @@ def quad(ym, yz, yp):
     b = 0.5 * (yp - ym)
     c = yz
     
-    if a == 0:  # מניעת חלוקה באפס ##
+    if a == 0:  ## Preventing division by zero, when calculating at the North Pole
         return 0, 0, 0, 0   ##
     
     xe = -b / (2 * a)
