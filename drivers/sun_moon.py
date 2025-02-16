@@ -50,6 +50,10 @@ def quad(ym, yz, yp):
     a = 0.5 * (ym + yp) - yz
     b = 0.5 * (yp - ym)
     c = yz
+    
+    if a == 0:  # מניעת חלוקה באפס ##
+        return 0, 0, 0, 0   ##
+    
     xe = -b / (2 * a)
     ye = (a * xe + b) * xe + c
     dis = b * b - 4.0 * a * c  # discriminant of y=a*x^2 +bx +c
