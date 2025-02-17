@@ -1160,7 +1160,7 @@ def main():
     magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
-    coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")} -{VERSION}'
+    coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}  {VERSION}'
     
     tft.fill(0) # מחיקת המסך
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
