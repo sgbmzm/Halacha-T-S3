@@ -17,7 +17,7 @@
 ## Changes made by Simcha Gershon Bohrer marked with ##
 
 import time
-from math import sin, cos, sqrt, fabs, atan, radians, floor, pi
+from math import sin, cos, sqrt, fabs, atan, radians, floor, pi,       atan2, degrees, sqrt, asin ##
 
 LAT = 53.29756504536339  # Local defaults
 LONG = -2.102811634540558
@@ -371,6 +371,46 @@ class RiSet:
         x, y, z = func(t)
         tl = self.lstt(t, hour) + self.long  # Local mean sidereal time adjusted for logitude
         return self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
+
+    ######################################################################################################3
+    #######################################################################################################
+    # זו תוספת שלי והכל בה נסיונות על בסיסי הפונקצייה הקודמת וגם צ'אט גיפיטי ועדיין חוץ מחישוב גובה השמש במעלות הכל לא טוב
+    # אבל חישוב גובה השמש במעלות הוא כן טוב וכרגע אני משתמש בו בתוכנה הראשית
+    # הניסיון הוא להחזיר לא רק את הגובה אלא גם אזימוט וגם עלייה ישרה ונטייה
+    # צריך לזכור שכרגע מוחזרים 4 דברים
+    def alt_az(self, hour, sun=True):
+        """
+        מחזירה את גובה השמש (Alt) ואת האזימוט שלה (Az) במעלות.
+        """
+        func = minisun if sun else minimoon
+        mjd = (self.mjd - 51544.5) + hour / 24.0
+        t = mjd / 36525.0
+        x, y, z = func(t)  # קואורדינטות קרטזיות של השמש או הירח
+
+        tl = self.lstt(t, hour) + self.long  # זמן כוכבי מקומי
+        sin_alt = self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
+        alt = degrees(asin(sin_alt))  # גובה השמש במעלות
+        
+        ##########
+        rho = sqrt(1.0 - z * z)
+        dec = (360.0 / 2 * pi) * atan(z / rho)
+        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24
+        ##########
+        
+        #dec = atan2(z, sqrt(x * x + y * y))  # נטייה (Declination)
+        #ra = degrees(atan2(y, x))  # עלייה ישרה (Right Ascension)
+        H = tl - ra  # חישוב זווית השעה
+
+        sin_az = cos(dec) * sin(radians(H))
+        cos_az = (sin(dec) - self.sglat * sin_alt) / (self.cglat * cos(dec))
+        az = degrees(atan2(sin_az, cos_az))
+        az = az if az >= 0 else az + 360  # לוודא שהטווח הוא 0-360 מעלות
+
+        return alt, az, ra, dec
+
+    ######################################################################################################3
+    #######################################################################################################
+
 
     # Calculate rise and set times of sun or moon for the current MJD. Times are
     # relative to that 24 hour period.
