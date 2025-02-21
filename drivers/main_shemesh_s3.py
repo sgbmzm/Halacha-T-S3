@@ -1081,12 +1081,17 @@ def main():
     
     # חישוב גובה השמש והירח ברגע זה כלומר שעה נוכחית בשבר עשרוני
     # לדעת את גובה השמש והירח אפשר גם במיקום שאין בו זריחות ושקיאות וזה לא מחזיר שגיאה אלא מחזיר None שזה כמו אפס
-    altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=True)))
-    m_altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=False)))
+    #altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=True))) # כרגע בוטל ומנסה בפונקצייה אחרת
+    #m_altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=False))) # כרגע בוטל ומנסה בפונקצייה אחרת
+    ##########
+    # כרגע רק הגובה עובד נכון בפונקצייה הזו
+    altitude, azimuth, ra, dec = riset.alt_az(current_hour, sun=True)
+    m_altitude, m_azimuth, m_ra, m_dec = riset.alt_az(current_hour, sun=False)
+    ##########
+    
     # תיקון גובה הירח כדי שיתאים למה שיש בכוכבים וזמנים. נדרש כנראה בגלל באג בספריית חישובי השמש והירח. למעקב
     # אולי במקור היה צריך להיות פחות 0.833 אבל למעשה יותר מדוייק 0.808
     m_altitude = m_altitude - 0.45
-    
     
      
     # אם מדובר אחרי 12 בלילה ולפני הזריחה ויודעים את זה לפי ששעת הזריחה מאוחרת מהרגע הנוכחי לפי אחת משתי השיטות ההלכתיות
