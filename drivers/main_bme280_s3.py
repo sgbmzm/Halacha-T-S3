@@ -39,7 +39,7 @@ import gc # חשוב נורא לניקוי הזיכרון
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 #from halacha_clock import gematria_pyluach
 
-import bme280
+from halacha_clock import bme280
 from time import sleep, localtime
 
 # פונטים
