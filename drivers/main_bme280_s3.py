@@ -571,7 +571,7 @@ def display_data():
     # גובה התחנה
     altitude = 320
     # תיקון חישוב הלחץ לגובה פני הים 
-    delta_p = 10 * (altitude/100) # כלל האצבע: לחץ האוויר יורד בכ-12 hPa לכל 100 מטרים בגובה
+    delta_p = 11 * (altitude/100) # כלל האצבע: לחץ האוויר יורד בכ-12 hPa לכל 100 מטרים בגובה
     pressure_at_sea_level = pressure + delta_p
     #pressure_at_sea_level = get_sea_level_pressure_hpa(pressure, temp, altitude)
 
