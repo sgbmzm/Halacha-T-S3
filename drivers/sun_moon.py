@@ -17,7 +17,7 @@
 ## Changes made by Simcha Gershon Bohrer marked with ##
 
 import time
-from math import sin, cos, sqrt, fabs, atan, radians, floor, pi,       atan2, degrees, sqrt, asin ##
+from math import sin, cos, sqrt, fabs, atan, radians, floor, pi,       atan2, degrees, asin ##
 
 LAT = 53.29756504536339  # Local defaults
 LONG = -2.102811634540558
@@ -391,21 +391,14 @@ class RiSet:
         sin_alt = self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
         alt = degrees(asin(sin_alt))  # גובה השמש במעלות
         
-        ##########
-        rho = sqrt(1.0 - z * z)
-        dec = (360.0 / 2 * pi) * atan(z / rho)
-        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24
-        ##########
+        # זה עובד מבינה מלאכותית
+        rho = sqrt(x * x + y * y)  # היטל של הווקטור על מישור XY
+        dec = degrees(atan2(z, rho))  # חישוב נטייה במעלות 
+        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24 # זה כנראה נכון מהפונקצייה מיניסאן
         
-        #dec = atan2(z, sqrt(x * x + y * y))  # נטייה (Declination)
-        #ra = degrees(atan2(y, x))  # עלייה ישרה (Right Ascension)
-        H = tl - ra  # חישוב זווית השעה
-
-        sin_az = cos(dec) * sin(radians(H))
-        cos_az = (sin(dec) - self.sglat * sin_alt) / (self.cglat * cos(dec))
-        az = degrees(atan2(sin_az, cos_az))
-        az = az if az >= 0 else az + 360  # לוודא שהטווח הוא 0-360 מעלות
-
+        #tau = 6.283185307179586476925287  # lower case, for symmetry with math.pi
+        az = 1.111111 ##### atan2(y, x) % tau זה לא נכון
+       
         return alt, az, ra, dec
 
     ######################################################################################################3
