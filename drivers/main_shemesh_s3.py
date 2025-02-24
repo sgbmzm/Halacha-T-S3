@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = 1
+VERSION = 0
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -957,6 +957,9 @@ esberim = [
         ["אבל: דיוק גובה הירח סוטה בכדקה", ""],
         
         ["  לחיצה מתמשכת מגדירה מיקום קבוע", ""],
+
+        ["מתחת גרא/מגא: דקות לשעה זמנית", ""],
+        ["מתחת שמש/ירח: אזימוט במעלות מהצפון", ""],
         
         ["רשימת זמני היום בשעות זמניות", ""],
         
@@ -1167,7 +1170,7 @@ def main():
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
-    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
