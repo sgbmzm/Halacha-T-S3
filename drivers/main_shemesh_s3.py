@@ -35,7 +35,7 @@ import time, math, machine, utime, esp32, network, ntptime
 from machine import I2C, Pin, ADC, PWM
 import gc # חשוב נורא לניקוי הזיכרון
 #import datetime as dt
-from halacha_clock.sun_moon import RiSet  # ספריית חישובי שמש
+from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import gematria_pyluach
 
@@ -1079,19 +1079,14 @@ def main():
     # חישוב מה השעה הנוכחית בשבר עשרוני
     current_hour = (hour + (minute / 60) + (second / 3600)) - location_offset_hours
     
-    # חישוב גובה השמש והירח ברגע זה כלומר שעה נוכחית בשבר עשרוני
+    # חישוב גובה השמש והירח וגם אזימוט ועלייה ישרה (עלייה ישרה בשעות עשרוני) ברגע זה. כלומר בשעה הנוכחית בשבר עשרוני
     # לדעת את גובה השמש והירח אפשר גם במיקום שאין בו זריחות ושקיאות וזה לא מחזיר שגיאה אלא מחזיר None שזה כמו אפס
-    #altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=True))) # כרגע בוטל ומנסה בפונקצייה אחרת
-    #m_altitude = math.degrees(math.asin(riset.sin_alt(current_hour, sun=False))) # כרגע בוטל ומנסה בפונקצייה אחרת
-    ##########
-    # כרגע רק הגובה עובד נכון בפונקצייה הזו
-    altitude, azimuth, ra, dec = riset.alt_az(current_hour, sun=True)
-    m_altitude, m_azimuth, m_ra, m_dec = riset.alt_az(current_hour, sun=False)
-    ##########
+    s_alt, s_az, s_ra, s_dec = riset.alt_az_ra_dec(current_hour, sun=True)
+    m_alt, m_az, m_ra, m_dec = riset.alt_az_ra_dec(current_hour, sun=False)
     
     # תיקון גובה הירח כדי שיתאים למה שיש בכוכבים וזמנים. נדרש כנראה בגלל באג בספריית חישובי השמש והירח. למעקב
     # אולי במקור היה צריך להיות פחות 0.833 אבל למעשה יותר מדוייק 0.808
-    m_altitude = m_altitude - 0.45
+    m_alt = m_alt - 0.45
     
      
     # אם מדובר אחרי 12 בלילה ולפני הזריחה ויודעים את זה לפי ששעת הזריחה מאוחרת מהרגע הנוכחי לפי אחת משתי השיטות ההלכתיות
@@ -1163,7 +1158,7 @@ def main():
     motsaei = reverse("מוצאי: ") if sunset and current_timestamp > sunset and (current_timestamp // 86400 == sunset_timestamp // 86400) else "" # מספר השניות ביממה הוא 86400
     heb_date_string = f'{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei}'
     magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
-    utc_offset_string = 'utc' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
+    utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
     coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")} :{VERSION}'
     
@@ -1171,15 +1166,16 @@ def main():
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
-    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,55)
-    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,71, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
+    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 52, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,95)
-    tft.write(FontHeb25,f' {" " if m_altitude > 0 else ""}{" " if abs(m_altitude) <10 else ""}{m_altitude:.3f}°',0,90, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb40,f"{" " if altitude > 0 else ""}{" " if abs(altitude) <10 else ""}{round(altitude,3):.3f}°", 135, 85, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,85)
+    tft.write(FontHeb20,f'                 {round(m_az)}                          {round(s_az)}', 0,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,88, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 83, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
     #tft.write(FontHeb25,f' {magrab_time}',0,120, s3lcd.GREEN, s3lcd.BLACK) #
     
