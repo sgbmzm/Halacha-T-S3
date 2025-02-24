@@ -400,11 +400,11 @@ class RiSet:
         dec = degrees(atan2(z, rho))  # חישוב נטייה במעלות
         
         # חישוב עלייה ישרה (RA)
-        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24 # עלייה ישרה בשעות אבל בלי דקות ושניות
+        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24 # עלייה ישרה בשעות כשבר עשרוני
 
         # חישוב האזימוט (Az)
         hourangle = radians(tl) - radians(ra * 15)  # זמן הכוכבים המקומי פחות העלייה הישרה של הכוכב זה זוית השעה שלו (ra * 15 מחזיר למעלות)
-        hourangle_hours = (degrees(hourangle) % 360)  / 15.0 # זווית השעה בשעות אבל בלי דקות ושניות
+        hourangle_hours = (degrees(hourangle) % 360)  / 15.0 # זווית השעה בשעות כשבר עשרוני
         
         sh = sin(hourangle)
         ch = cos(hourangle)
