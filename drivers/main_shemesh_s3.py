@@ -1191,7 +1191,8 @@ def main():
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 52, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,85)
-    tft.write(FontHeb20,f'                 {round(m_az)}                          {round(s_az)}', 0,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{round(m_az)}', 101,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{round(s_az)}', 283,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,88, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 83, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
