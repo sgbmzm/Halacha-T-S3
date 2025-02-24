@@ -17,7 +17,8 @@
 ## Changes made by Simcha Gershon Bohrer marked with ##
 
 import time
-from math import sin, cos, sqrt, fabs, atan, radians, floor, pi,       atan2, degrees, asin ##
+from math import sin, cos, sqrt, fabs, atan, radians, floor, pi,            atan2, degrees, asin, #hypot
+
 
 LAT = 53.29756504536339  # Local defaults
 LONG = -2.102811634540558
@@ -50,10 +51,6 @@ def quad(ym, yz, yp):
     a = 0.5 * (ym + yp) - yz
     b = 0.5 * (yp - ym)
     c = yz
-    
-    if a == 0:  ## Preventing division by zero, when calculating at the North Pole
-        return 0, 0, 0, 0   ##
-    
     xe = -b / (2 * a)
     ye = (a * xe + b) * xe + c
     dis = b * b - 4.0 * a * c  # discriminant of y=a*x^2 +bx +c
@@ -201,6 +198,7 @@ class RiSet:
     def __init__(self, lat=LAT, long=LONG, lto=0, tl=None, dst=lambda x: x):  # Local defaults
         self.sglat = sin(radians(lat))
         self.cglat = cos(radians(lat))
+        self.lat = lat ###########
         self.long = long
         self.check_lto(lto)  # -15 < lto < 15
         self.lto = round(lto * 3600)  # Localtime offset in secs
@@ -371,14 +369,16 @@ class RiSet:
         x, y, z = func(t)
         tl = self.lstt(t, hour) + self.long  # Local mean sidereal time adjusted for logitude
         return self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
+    
+
 
     ######################################################################################################3
     #######################################################################################################
-    # זו תוספת שלי והכל בה נסיונות על בסיסי הפונקצייה הקודמת וגם צ'אט גיפיטי ועדיין חוץ מחישוב גובה השמש במעלות הכל לא טוב
-    # אבל חישוב גובה השמש במעלות הוא כן טוב וכרגע אני משתמש בו בתוכנה הראשית
-    # הניסיון הוא להחזיר לא רק את הגובה אלא גם אזימוט וגם עלייה ישרה ונטייה
-    # צריך לזכור שכרגע מוחזרים 4 דברים
-    def alt_az(self, hour, sun=True):
+
+    # פונקצייה נפלאה שבניתי על בסיס הפונקצייה הקודמת ביחד עם בינה מלאכותית ודוגמאות מספריית אסטרל
+    # הפונקצייה מחזירה גובה השמש או הירח במעלות, אזימוט מהצפון במעלות, עלייה ישרה בשעות (עשרוני-ללא דקות ושניות), דקלינציה במעלות
+    # בתוך הפונקצייה מחושב גם זמן כוכבים מקומי וזווית השעה של השמש או הירח אך הם לא מוחזרים
+    def alt_az_ra_dec(self, hour, sun=True):
         """
         מחזירה את גובה השמש (Alt) ואת האזימוט שלה (Az) במעלות.
         """
@@ -391,19 +391,36 @@ class RiSet:
         sin_alt = self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
         alt = degrees(asin(sin_alt))  # גובה השמש במעלות
         
-        # זה עובד מבינה מלאכותית
+        # חישוב נטייה במעלות
         rho = sqrt(x * x + y * y)  # היטל של הווקטור על מישור XY
-        dec = degrees(atan2(z, rho))  # חישוב נטייה במעלות 
-        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24 # זה כנראה נכון מהפונקצייה מיניסאן
+        dec = degrees(atan2(z, rho))  # חישוב נטייה במעלות
         
-        #tau = 6.283185307179586476925287  # lower case, for symmetry with math.pi
-        az = 1.111111 ##### atan2(y, x) % tau זה לא נכון
-       
+        # חישוב זווית הימצאות (RA)
+        ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24 # עלייה ישרה בשעות אבל בלי דקות ושניות
+
+        # מכאן והלאה עובד טוב רק בקו המשווה
+        # זווית השעה והאזימוט נכונים כרגע רק בקו המשווה ועדיין לא יודע למה
+        # חישוב האזימוט (Az)
+        hourangle = radians(tl) - radians(ra * 15)  # זמן הכוכבים המקומי פחות העלייה הישרה של הכוכב זה זוית השעה שלו (ra * 15 מחזיר למעלות)
+        hourangle_hours = (degrees(hourangle) % 360)  / 15.0 # זווית השעה בשעות אבל בלי דקות ושניות
+        
+        sh = sin(hourangle)
+        ch = cos(hourangle)
+        sd = sin(radians(dec))
+        cd = cos(radians(dec))
+        sl = self.sglat # ==sin(radians(lat))
+        cl = self.cglat # ==cos(radians(lat))
+
+        x = -ch * cd * sl + sd * cl
+        y = -sh * cd
+        az = degrees(atan2(y, x)) % 360  # אזימוט במעלות
+        
         return alt, az, ra, dec
 
-    ######################################################################################################3
-    #######################################################################################################
+    
 
+######################################################################################################3
+#######################################################################################################
 
     # Calculate rise and set times of sun or moon for the current MJD. Times are
     # relative to that 24 hour period.
@@ -443,3 +460,4 @@ class RiSet:
             if t_rise is not None and t_set is not None:
                 break  # All done
         return to_int(t_rise), to_int(t_set)  # Convert to int preserving None values
+
