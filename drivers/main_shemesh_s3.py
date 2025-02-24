@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = 0
+VERSION = 5
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -187,6 +187,19 @@ def convert_seconds(seconds, to_hours=False):
         return f'{seconds // 3600 :02.0f}:{(seconds % 3600) // 60 :02.0f}:{seconds % 60 :02.0f}'
     else:
         return f'{seconds // 60 :02.0f}:{seconds % 60 :02.0f}'
+
+
+# פונקצייה לפריטת שעה בשבר עשרוני לשניות
+# אחר כך אפשר להשתמש בפונקצייה הקודמת להמרת של השניות לשעות דקות ושניות בפורמט שעון
+# פונקצייה זו יכולה להיות שימושים לצורך נתינת עלייה ישרה בפורמט של שעות דקות ושניות אך כרגע אין לה שימוש בקוד זה
+def decimal_hours_to_seconds(decimal_hours):
+    hours = int(decimal_hours)  # קבלת השעות השלמות
+    minutes_decimal = (decimal_hours - hours) * 60  # המרת החלק השברי לדקות
+    minutes = int(minutes_decimal)  # קבלת הדקות השלמות
+    seconds = (minutes_decimal - minutes) * 60  # המרת החלק השברי של הדקות לשניות
+    total_seconds = hours * 3600 + minutes * 60 + seconds
+    return total_seconds
+
     
     
     
