@@ -378,7 +378,7 @@ def sync_rtc_with_ds3231():
                     rtc_ds3231.datetime(new_time)
                     
                     #tft.fill(0) # מחיקת המסך
-                    tft.write(FontHeb25,f'{reverse("עודכן בהצלחה השעון")}',30,95)
+                    tft.write(FontHeb25,f'{reverse("השעון עודכן בהצלחה")}',30,95)
                     tft.show() # כדי להציג את הנתונים על המסך
                     time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
 
