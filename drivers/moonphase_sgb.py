@@ -113,13 +113,13 @@ class MoonPhase:
     def mtime(cls):
         return round(time.time()) if cls.tim is None else cls.tim
 
-    '''
+    
     @classmethod
     def set_time(cls, t):  # Given time from Unix epoch set time
         if time.gmtime(0)[0] == 2000:  # Machine epoch
             t -= 10957 * 86400
         cls.tim = t
-    '''
+    
     ##################################################################################
     
     def __init__(self, lto: float = 0, dst=lambda x: x):
@@ -154,7 +154,7 @@ class MoonPhase:
         self.lto_s = self._check_lto(t)  # Localtime offset in secs
 
     def set_day(self, doff: float = 0):
-        self.secs = round(time.time() + doff * 86400 - self.lto_s)
+        self.secs = round(self.mtime() + doff * 86400 - self.lto_s)   ## self.mtime() במקום time.time()
         start = self._midnight(doff)  # Phases are calculated around this time (UTC)
         self._populate(start)  # Immediate return if .phases already OK
 
