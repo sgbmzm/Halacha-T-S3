@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "26/02/2025:1"
+VERSION = "26/02/2025:2"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -967,7 +967,7 @@ def center(text, font):
 esberim = [
     
         ["שעון ההלכה גרסה",f"{VERSION}"],
-        ["מאת: שמחה גרשון בורר - כוכבים וזמנים",""],
+        [" מאת: שמחה גרשון בורר - כוכבים וזמנים",""],
         [reverse("052-7661249 - sgbmzm@gmail.com  "), ""],
         ["כל הזכויות שמורות - להלן הסברים", ""],
         ["כשהשעון מכוון: דיוק הזמנים 01 שניות", ""],
@@ -1214,7 +1214,7 @@ def main():
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'{phase_percent:.1f}% :{reverse("שלב")}',0,101, s3lcd.MAGENTA, s3lcd.BLACK)
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
-    tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 83, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 81, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
     #tft.write(FontHeb25,f' {magrab_time}',0,120, s3lcd.GREEN, s3lcd.BLACK) #
     
@@ -1390,7 +1390,7 @@ while True:
         tft.fill(0) # מחיקת המסך
         tft.write(FontHeb25,f'{reverse("בתהליך כניסה למצב שינה...")}',30,75)
         tft.show() # כדי להציג את הנתונים על המסך
-        time.sleep(3) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
+        #time.sleep(3) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
         tft.fill(0) # מחיקת המסך
         tft.show() # כדי להציג את הנתונים על המסך
         # כיבוי הכוח והתאורה וכל מה שקשור למסך.
