@@ -1,6 +1,6 @@
 # Halacha-watch-T-DISPLAY-S3
 
-![clock](clock.JPG)
+![clock](clock2.JPG)
 
 ## License  
 **The file `main_shemesh_s3` is for personal use only!**  
