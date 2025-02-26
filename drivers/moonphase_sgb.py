@@ -9,6 +9,8 @@
 # 32-bit floating point.
 # Copyright (c) Peter Hinch 2023  Released under the MIT license.
 
+## Changes made by Simcha Gershon Bohrer marked with ##
+
 
 # Exports calc_phases()
 
@@ -101,6 +103,25 @@ def dt_to_text(tim):  # Convert a time to text
 class MoonPhase:
     verbose = True
 
+    #######################################################################################
+    כל זה הוספתי כמו ב sun_moon כדי שיהיה אפשר להגדיר זמן אחר במקום זמן המכונה הפנימי
+    # MoonPhase.mtime() returns machine time as an int. The class variable tim is for
+    # test purposes only and allows the hardware clock to be overridden
+    tim = None 
+
+    @classmethod
+    def mtime(cls):
+        return round(time.time()) if cls.tim is None else cls.tim
+
+    '''
+    @classmethod
+    def set_time(cls, t):  # Given time from Unix epoch set time
+        if time.gmtime(0)[0] == 2000:  # Machine epoch
+            t -= 10957 * 86400
+        cls.tim = t
+    '''
+    ##################################################################################
+    
     def __init__(self, lto: float = 0, dst=lambda x: x):
         self.lto_s = self._check_lto(lto)  # -15 < lto < 15
         # local time = UTC + lto .lto_s = offset in secs
@@ -126,7 +147,7 @@ class MoonPhase:
     # passed offset in days. Convert to UTC using LTO. The returned value is as
     # if the hardware clock were running UTC.
     def _midnight(self, doff: float = 0):  # Midnight last night + days offset (UTC)
-        tl = round((time.time() // 86400 + doff) * 86400)  # Target in local time
+        tl = round((self.mtime() // 86400 + doff) * 86400)  # Target in local time     ## self.mtime() במקום time.time()
         return tl - self.lto_s
 
     def set_lto(self, t: float):  # Update the offset from UTC
