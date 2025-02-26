@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = 0
+VERSION = "26/02/2025"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -36,6 +36,7 @@ from machine import I2C, Pin, ADC, PWM
 import gc # חשוב נורא לניקוי הזיכרון
 #import datetime as dt
 from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
+from halacha_clock.moonphase import MoonPhase  # ספריית חישובי שלב הירח
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import gematria_pyluach
 
@@ -963,7 +964,8 @@ def center(text, font):
 
 esberim = [
     
-        ["שמחה גרשון בורר - כוכבים וזמנים", ""],
+        ["שעון ההלכה גרסה",f"{VERSION}"],
+        ["מאת שמחה גרשון בורר - כוכבים וזמנים",""],
         [reverse("052-7661249 - sgbmzm@gmail.com  "), ""],
         ["כל הזכויות שמורות - להלן הסברים", ""],
         ["כשהשעון מכוון: דיוק הזמנים 01 שניות", ""],
@@ -1007,6 +1009,13 @@ esberim = [
         ["להימנע מסעודה בערב שבת", "09:00"],
         ["סוף אכילת חמץ", "04:00"],
         ["סוף שריפת חמץ", "05:00"],
+
+        ["  שלב הירח במסלולו החודשי - באחוזים", ""],
+        ["מולד=0/100, ניגוד=50, רבע=25/75", ""],
+        ["להלן מאפייני ירח לראייה ראשונה", ""],
+        ["מינימום מסלול לראייה ראשונה: 2% ", ""],
+        ["וגובה ירח +4° כשגובה השמש -4°", ""],
+    
     ]
     
 
@@ -1156,8 +1165,14 @@ def main():
             
             mga_temporal_time = reverse("שגיאה  ")
             minutes_in_mga_temporal_hour = ""
-            
-            
+
+
+    # חישובים שלב הירח הנוכחי. בעתיד לסדר לזה tim
+    mp = MoonPhase()  # datum is midnight last night
+    phase = mp.phase()
+    #phase_percent = (phase / 0.5) * 100 if phase <= 0.5 else ((1 - phase) / 0.5) * 100
+    phase_percent = round(mp.phase() * 100,1)
+                    
     ###############################################################
     # מכאן והלאה ההדפסות למסך
     
@@ -1183,17 +1198,19 @@ def main():
     tft.fill(0) # מחיקת המסך
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
-    tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
+    tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
     tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 52, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,85)
-    tft.write(FontHeb20,f'{round(m_az)}', 101,100, s3lcd.CYAN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'{round(s_az)}', 283,100, s3lcd.CYAN, s3lcd.BLACK)
-    tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,88, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
+    tft.write(FontHeb20,f'{round(m_az)}°', 100,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{round(s_az)}°', 281,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
+    #tft.write(FontHeb20,f'{phase_percent:.1f}% :{reverse("שלב")}',0,101, s3lcd.MAGENTA, s3lcd.BLACK)
+    tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 83, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
     #tft.write(FontHeb25,f' {magrab_time}',0,120, s3lcd.GREEN, s3lcd.BLACK) #
@@ -1209,8 +1226,13 @@ def main():
     tft.line(0, 145, 320, 145, s3lcd.YELLOW) # קו הפרדה
     tft.line(0, 120, 320, 120, s3lcd.YELLOW) # קו הפרדה
     
+    # ציור מסגרת לירח שני הקווים הבאים
+    tft.line(0, 80, 320, 80, s3lcd.YELLOW) # קו הפרדה
+    #tft.line(135, 80, 135, 120, s3lcd.YELLOW) # קו הפרדה
+    
     
     tft.show() # כדי להציג את הנתונים על המסך
+    
     
     
     
