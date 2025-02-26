@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "26/02/2025"
+VERSION = "26/02/2025:1"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -36,7 +36,7 @@ from machine import I2C, Pin, ADC, PWM
 import gc # חשוב נורא לניקוי הזיכרון
 #import datetime as dt
 from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
-from halacha_clock.moonphase import MoonPhase  # ספריית חישובי שלב הירח
+from halacha_clock.moonphase_sgb import MoonPhase  # ספריית חישובי שלב הירח
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import gematria_pyluach
 
@@ -1168,10 +1168,11 @@ def main():
 
 
     # חישובים שלב הירח הנוכחי. בעתיד לסדר לזה tim
-    mp = MoonPhase()  # datum is midnight last night
+    MoonPhase.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
+    mp = MoonPhase(lto=location_offset_hours)  # datum is midnight last night כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
     phase = mp.phase()
-    #phase_percent = (phase / 0.5) * 100 if phase <= 0.5 else ((1 - phase) / 0.5) * 100
-    phase_percent = round(mp.phase() * 100,1)
+    #phase_percent = (phase / 0.5) * 100 if phase <= 0.5 else ((1 - phase) / 0.5) * 100 # זה לא נכון אבל נשאר לדוגמא
+    phase_percent = round(phase * 100,1)
                     
     ###############################################################
     # מכאן והלאה ההדפסות למסך
