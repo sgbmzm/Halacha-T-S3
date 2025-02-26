@@ -104,7 +104,7 @@ class MoonPhase:
     verbose = True
 
     #######################################################################################
-    כל זה הוספתי כמו ב sun_moon כדי שיהיה אפשר להגדיר זמן אחר במקום זמן המכונה הפנימי
+    # כל זה הוספתי כמו ב sun_moon כדי שיהיה אפשר להגדיר זמן אחר במקום זמן המכונה הפנימי
     # MoonPhase.mtime() returns machine time as an int. The class variable tim is for
     # test purposes only and allows the hardware clock to be overridden
     tim = None 
