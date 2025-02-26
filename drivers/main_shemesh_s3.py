@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "26/02/2025:2"
+VERSION = "26/02/2025:3"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -1202,14 +1202,14 @@ def main():
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
-    tft.write(FontHeb20,f'                {reverse("מגא")}                          {reverse("גרא")}',0,47)
-    tft.write(FontHeb20,f'                 {minutes_in_mga_temporal_hour}                            {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
+    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.line(20, 45, 300, 45, s3lcd.YELLOW) # קו הפרדה
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 52, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'                {reverse("ירח")}                          {reverse("שמש")}',0,82)
-    tft.write(FontHeb20,f'{round(m_az)}°', 98,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
+    tft.write(FontHeb20,f'{round(m_az)}°', 97,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb20,f'{round(s_az)}°', 281,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     #tft.write(FontHeb20,f'{phase_percent:.1f}% :{reverse("שלב")}',0,101, s3lcd.MAGENTA, s3lcd.BLACK)
