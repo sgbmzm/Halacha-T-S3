@@ -384,7 +384,7 @@ def sync_rtc_with_ds3231():
 
                     print("זמן שרת עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
                     # קריאה חוזרת לפונקצייה זו כדי שהשעון הפנימי יהיה מעודכן בזמן החדש
-                    return sync_rtc_with_ds3231(update_ds3231_from_ntp = False)
+                    return sync_rtc_with_ds3231()
                     
                 except Exception as error:
                     tft.write(FontHeb25,f'{reverse("שגיאה בעדכון השעון")}',30,95)
@@ -395,7 +395,8 @@ def sync_rtc_with_ds3231():
                     print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
                     # אם השעון החיצוני לא עודכן מעולם ולכן הוא בשנת 2000 אז צריך לקרוא שוב ושוב לפונקציית העדכון עד שהשעון החיצוני יעודכן
                     if ds3231_time[0] < 2016:
-                        return sync_rtc_with_ds3231(update_ds3231_from_ntp = True)
+                        ntp_update = True
+                        return sync_rtc_with_ds3231()
 
             
             elif update_ds3231_manually:
