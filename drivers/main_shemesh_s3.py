@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "03/03/2025"
+VERSION = "03/03/2025:0"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -355,7 +355,7 @@ def sync_rtc_with_ds3231():
                 
                 # הדפסה למסך
                 tft.fill(0) # מחיקת המסך
-                tft.write(FontHeb25,f'{reverse("בתהליך עדכון השעון...")}',0,55)
+                tft.write(FontHeb25,f'{reverse("בתהליך עדכון רכיב השעון...")}',0,55)
                 tft.write(FontHeb20,f'{reverse("מחפש רשת ללא סיסמה...")}',0,75)
                 tft.show() # כדי להציג את הנתונים על המסך
                 
@@ -1203,15 +1203,13 @@ def main():
     # איזור כותרת
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
-    tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
-
+    
     # איזור שעה זמנית
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
     tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 50, s3lcd.GREEN, s3lcd.BLACK)
-    tft.line(0, 80, 320, 80, s3lcd.YELLOW) # קו הפרדה
 
     # איזור גובה אזימוט ושלב ירח
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
@@ -1220,7 +1218,6 @@ def main():
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 81, s3lcd.GREEN, s3lcd.BLACK)
-    tft.line(0, 120, 320, 120, s3lcd.YELLOW) # קו הפרדה
 
     # איזור שורת הסברים מתחלפת
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
@@ -1228,12 +1225,17 @@ def main():
     text = reverse(esberim[int(current_screen)][0])  # רוורס של הטקסט העברי
     time_value = esberim[int(current_screen)][1]  # הערך להצגה
     CCC = f"{time_value}  :{text}" if time_value != "" else f"{text}"
-    tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך
-    tft.line(0, 145, 320, 145, s3lcd.YELLOW) # קו הפרדה 
+    tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך 
 
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
     tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
+
+    # איזור קווי הפרדה. חייב להיות אחרי הכל כדי שיעלה מעל הכל
+    tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
+    tft.line(0, 80, 320, 80, s3lcd.YELLOW) # קו הפרדה
+    tft.line(0, 120, 320, 120, s3lcd.YELLOW) # קו הפרדה
+    tft.line(0, 145, 320, 145, s3lcd.YELLOW) # קו הפרדה
 
     tft.show() # כדי להציג את הנתונים על המסך
     
@@ -1318,7 +1320,7 @@ def toggle_location(pin):
         # הדפסה למסך שנבחר מיקום ברירת מחדל חדש
         tft.fill(0) # מחיקת המסך
         tft.write(FontHeb20,f'{reverse("מיקום ברירת מחדל הוגדר בהצלחה")}',20,75)
-        tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',130,100)
+        tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',120,100)
         tft.show() # כדי להציג את הנתונים על המסך
         time.sleep(5) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
         
