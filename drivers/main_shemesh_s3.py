@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "03/03/2025:0"
+VERSION = "03/03/2025:1"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -1190,8 +1190,9 @@ def main():
     heb_date, heb_year_int = get_current_heb_date_string(year, month, day)
     heb_year_string = gematria_pyluach._num_to_str(heb_year_int, thousands=False, withgershayim=False)
     hebrew_weekday = heb_weekday_names(get_normal_weekday(rtc_week_day))
-    # מוצאי יום עברי מוגדר משעת השקיעה עד השעה 11:59 של אותה יממה של השקיעה שבזמן זה התאריך הלועזי והעברי אינם שווים. וזה רק כשיש שקיעה
-    motsaei = reverse("מוצאי: ") if sunset and current_timestamp > sunset and (current_timestamp // 86400 == sunset_timestamp // 86400) else "" # מספר השניות ביממה הוא 86400
+    # מוצאי יום עברי מוגדר משעה שהשמש בעומק יותר ממינוס 4 מעלות תחת האופק לאחר השקיעה ועד השעה 11:59 של אותה יממה של השקיעה שבזמן זה התאריך הלועזי והעברי אינם שווים. וזה רק כשיש שקיעה
+    # מינוס ארבע מעלות תחת האופק שווה בערך לגובה השמש 20 דקות אחרי השקיעה בבמוצע שנתי בארץ ישראל זה כדי שלא לכתוב מוצאי שבת מיד בשקיעה
+    motsaei = reverse("מוצאי: ") if sunset and current_timestamp > sunset and s_alt < -4 and (current_timestamp // 86400 == sunset_timestamp // 86400) else "" # מספר השניות ביממה הוא 86400
     heb_date_string = f'{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei}'
     magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
@@ -1391,18 +1392,15 @@ while True:
         
         # הדפסה למסך
         tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb20,f'{reverse("כניסה למצב שינה...")}',30,123) # דווקא בגובה של שורת ההסברים כדי שאם יהיו מריחות הם יסתירו רק את שורה זו
+        tft.write(FontHeb25,f'{reverse("כניסה למצב שינה...")}',30,20) # דווקא בגובה של שורת התאריך כדי שאם יהיו מריחות הם יסתירו רק את שורה זו
         tft.show() # כדי להציג את הנתונים על המסך
         time.sleep(0.7) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-        
         # כעת שלבים חשובים נורא כדי שלא יימרחו צבעים במסך בזמן מצב שינה שהיה קורה כאשר מחוברת סוללה והמכשיר מתחמם בכיס כי הוא צמוד לגוף
-        
-        '''
         tft.fill(0) # מילוי שחור כלומר כיבוי הפיקסלים
+        tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
         tft.show() 
         time.sleep(0.3)
-        '''
-        
+          
         # כיבוי הכוח והתאורה וכל מה שקשור למסך.
         # כנראה לי שזה לא הכרחי ולא מקטין את צריכת החשמל יותר מאשר המצב בשניה עמוקה רגילה.
         BACKLIGHT.duty(PWM_MIN)
