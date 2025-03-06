@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "05/03/2025:2"
+VERSION = "06/03/2025:0"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -32,7 +32,7 @@ VERSION = "05/03/2025:2"
 
 
 import time, math, machine, utime, esp32, network, ntptime
-from machine import I2C, Pin, ADC, PWM
+from machine import I2C, SoftI2C, Pin, ADC, PWM, RTC
 import gc # חשוב נורא לניקוי הזיכרון
 #import datetime as dt
 from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
@@ -74,7 +74,43 @@ def read_battery_voltage():
 boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
 button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
 
-####################################################################################################3
+####################################################################################################
+
+#הגדרת ערוצי I2C הגדרת האם ולאיפה מחוברים DS3231 שזה שעון חיצוני וגם BME280 שזה חיישן טמפרטורה
+
+# יצירת אובייקט I2C עם נגדי pull-up פנימיים עבור הפינים שהלחמתי במכשיר
+# אם מגדירים את הפינים ישירות בלי נגדים פנימיים זה עושה כאילו יש הרבה התקני I2C מחוברים למרות שבאמת אין
+solder_pin_plus = Pin(17, Pin.OUT, value=1) # חייבים קודם להפעיל כך את הפין החיובי המולחם אחרת החיישן שמחובר ל I2C המולחם לא יעבוד
+solder_pin_scl = Pin(16, Pin.OPEN_DRAIN, pull=Pin.PULL_UP)
+solder_pin_sda = Pin(21, Pin.OPEN_DRAIN, pull=Pin.PULL_UP)
+solder_pins_i2c = SoftI2C(scl=solder_pin_scl, sda=solder_pin_sda)
+
+# זה I2C הרגיל המובנה במכשיר והוא כבר יש לו נגדים מובנים
+original_i2c = I2C(scl=Pin(44), sda=Pin(43))
+
+# סריקת כל אחד מ I2C כדי לדעת אילו התקנים מחובר לכל אחד
+original_i2c_devices = original_i2c.scan()
+solder_pins_i2c_devices = solder_pins_i2c.scan()
+
+ds3231_bitname = 0x68 
+bme280_bitname = 0x76 # או 0x77 רק כאשר מחברים את הפין SDO ל-VCC
+
+# משתנים ששומרים תשובה בנכון או לא נכון לשאלה האם DS3231 ו/או BME280 מחוברים או לא מחוברים
+is_ds3231_connected = ds3231_bitname in original_i2c_devices or ds3231_bitname in solder_pins_i2c_devices
+is_bme280_connected = bme280_bitname in original_i2c_devices or bme280_bitname in solder_pins_i2c_devices
+
+# אם מחובר DS3231, צריך לבדוק לאיפה
+if is_ds3231_connected:
+    # הגדרת כתובת I2C נכונה עבור SD3231 ושם היציאה שאליה מחובר
+    ds3231_exit, ds3231_exit_name = (original_i2c, "יציאה חיצונית") if ds3231_bitname in original_i2c_devices else (solder_pins_i2c, "פינים מולחמים")
+
+# אם מחובר BME280, צריך לבדוק לאיפה
+if is_bme280_connected:
+    # הגדרת כתובת I2C נכונה עבור SD3231 ושם היציאה שאליה מחובר
+    bme280_exit, bme280_exit_name = (original_i2c, "יציאה חיצונית") if bme280_bitname in original_i2c_devices else (solder_pins_i2c, "פינים מולחמים")
+
+
+#############################################################################################
 
 # משתנה גלובלי חשוב מאוד ששומר את השאלה האם לעדכן את השעון החיצוני מהרשת
 # ברירת המחדל היא שלא
