@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "06/03/2025:0"
+VERSION = "09/03/2025"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -55,6 +55,10 @@ tft = tft_config.config(rotation=3) # כיוון סיבוב התצוגה שאנ�
 tft.init() # כך חייבים לעשות
 
 
+# משתנה גלובלי שמפנה לשעון הפנימי של המכשיר
+rtc_system = machine.RTC()
+
+
 ##########################################################################################################
 # הגדרת ADC על GPIO4 לצורך קריאת כמה מתח המכשיר מקבל
 adc = ADC(Pin(4))  
@@ -88,26 +92,39 @@ solder_pins_i2c = SoftI2C(scl=solder_pin_scl, sda=solder_pin_sda)
 # זה I2C הרגיל המובנה במכשיר והוא כבר יש לו נגדים מובנים
 original_i2c = I2C(scl=Pin(44), sda=Pin(43))
 
-# סריקת כל אחד מ I2C כדי לדעת אילו התקנים מחובר לכל אחד
-original_i2c_devices = original_i2c.scan()
-solder_pins_i2c_devices = solder_pins_i2c.scan()
+######################################################################################################
 
+# משתנים גלובליים של שמות ההתקנים שיכולים להיות מחוברים ליציאת I2C עבור תוכנה זו
 ds3231_bitname = 0x68 
 bme280_bitname = 0x76 # או 0x77 רק כאשר מחברים את הפין SDO ל-VCC
 
-# משתנים ששומרים תשובה בנכון או לא נכון לשאלה האם DS3231 ו/או BME280 מחוברים או לא מחוברים
-is_ds3231_connected = ds3231_bitname in original_i2c_devices or ds3231_bitname in solder_pins_i2c_devices
-is_bme280_connected = bme280_bitname in original_i2c_devices or bme280_bitname in solder_pins_i2c_devices
 
-# אם מחובר DS3231, צריך לבדוק לאיפה
-if is_ds3231_connected:
-    # הגדרת כתובת I2C נכונה עבור SD3231 ושם היציאה שאליה מחובר
-    ds3231_exit, ds3231_exit_name = (original_i2c, "יציאה חיצונית") if ds3231_bitname in original_i2c_devices else (solder_pins_i2c, "פינים מולחמים")
+# פונקצייה מאוד חשובה שבודקת האם ולאיפה מחוברים DS3231 או BME280 מתוך יציאות I2C שהוגדרו לעיל
+def check_i2c_device(device_bitname):
+    
+    # סריקת כל אחד מ I2C כדי לדעת אילו התקנים מחובר לכל אחד
+    original_i2c_devices = original_i2c.scan()
+    solder_pins_i2c_devices = solder_pins_i2c.scan()
+  
+    # משתנים ששומרים תשובה בנכון או לא נכון לשאלה האם DS3231 ו/או BME280 מחוברים או לא מחוברים
+    is_device_connected = device_bitname in original_i2c_devices or device_bitname in solder_pins_i2c_devices
+    
+    # אם מחובר DS3231, צריך לבדוק לאיפה
+    if is_device_connected:
+        # הגדרת כתובת I2C נכונה עבור SD3231 ושם היציאה שאליה מחובר
+        device_exit, device_exit_name = (original_i2c, "יציאה חיצונית") if device_bitname in original_i2c_devices else (solder_pins_i2c, "פינים מולחמים")
+        
+    else:
+        device_exit, device_exit_name = None, None
+      
+  
+    return is_device_connected, device_exit, device_exit_name
 
-# אם מחובר BME280, צריך לבדוק לאיפה
-if is_bme280_connected:
-    # הגדרת כתובת I2C נכונה עבור SD3231 ושם היציאה שאליה מחובר
-    bme280_exit, bme280_exit_name = (original_i2c, "יציאה חיצונית") if bme280_bitname in original_i2c_devices else (solder_pins_i2c, "פינים מולחמים")
+
+
+
+# קריאה לפונקצייה שהוגדרה לעיל ובדיקה ראשונית בתחילת ריצת התוכנה האם BME280 מחובר ולאיפה. כרגע אין לזה שימוש
+#is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bitname)
 
 
 #############################################################################################
@@ -237,11 +254,50 @@ def decimal_hours_to_seconds(decimal_hours):
     total_seconds = hours * 3600 + minutes * 60 + seconds
     return total_seconds
 
-    
-    
-    
 
-#######################################################################################3
+
+
+##########################################################################################
+
+# פונקצייה שאינה בשימוש כלל כרגע
+# היא מיועדת למקרים שבהם רוצים לעדכן את השעה ב DS3231 מהמחשב או באופן ידני במקום מהרשת והיא לא מומלצת כלל כי עדיף לעדכן מהרשת
+# בכל מקרה אסור לקרוא לה אם לא מחוברים למחשב או אם השעה במחשב לא מכוונת
+# שימו לב!!! בעדכון באמצעות פונקצייה זו צריך להקפיד שאיזור הזמן יהיה איזור הזמן של ישראל אחרת יהיו שגיאות בחישובי הזמן בתוכנה
+# זה מסתמך על הגדרות משתנים גלובליים: rtc_system וגם rtc_ds3231
+def update_ds3231_from_computer_or_manually(from_computer=False, manually=False):
+    
+    rtc_ds3231 = DS3231(ds3231_exit)
+
+    
+    if from_computer:
+            
+        # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
+        year, month, day, week_day, hour, minute, second, micro_second = rtc_system.datetime()
+        # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
+        new_time = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
+        
+        print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
+
+        # עדכון הזמן ב-RTC
+        rtc_ds3231.datetime(new_time)
+
+        print("זמן המחשב עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
+        
+    elif manually:
+                
+        # כאן אפשר לבחור לבד איזה נתונים לכוון לשעון החיצוני
+        year, month, day, hour, minute, second, weekday = 1988, 2, 24, 18, 45, 56, 1 # 1 = sunday                
+        new_time = (year, month, day, hour, minute, second, weekday)
+
+
+        print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
+        
+        # עדכון הזמן ב-RTC
+        rtc_ds3231.datetime(new_time)
+
+        print("זמן ידני עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
+
+######################################################################################################3
 
 # מונקצייה שמנסה להתחבר לווייפי ולקבל את הזמן הנוכחי ב UTC-0
 def get_ntp_time():
@@ -313,162 +369,124 @@ def get_ntp_time():
         wlan.active(False)  # כיבוי ה-WiFi תמיד בסוף, בין אם הצלחנו או נכשלנו
 
 
+#######################################################################################3
+
+
+
+time_source_dic = {1: "שעה משעון חיצוני DS3231", 2: "שעה משרת NTP", 3: "שעה משעון פנימי שכנראה לא מדוייק", 4: "זמן שרירותי"}
+
+# משתנה גלובלי חשוב מאוד ששומר מידע איזה סוג זמן משמש בפועל בתוכנה
+# ראו פירוט במשתנה: time_type_dic
+time_source = None
+
+# פונקצייה שמטפלת בכל הגדרת הזמן, ועדכונו אם צריך, גם בשעון הפנימי וגם בשעון החיצוני
+# היא באה במקום הפונקצייה שהייתה קיימת פעם ונקראה בשם: sync_rtc_with_ds3231()
+def check_and_set_time():
+    
+    # הצהרה על משתנה גלובלי שקובע האם יש לעדכן את הזמן מהרשת
+    global ntp_update
+    
+    # הצהרה על משתנה גלובלי ששומר מידע איזה סוג סמן משמש בפועל
+    # ראו פירוט במשתנה: time_type_dic
+    global time_source
+
+    # קריאת הזמן מהשעון הפנימי של הבקר
+    rtc_system = machine.RTC()
+    
+    # בדיקה האם DS3231 מחובר ולאיפה מחובר באמצעות פונקצייה שהוגדרה לעיל
+    is_ds3231_connected, ds3231_exit, ds3231_exit_name = check_i2c_device(ds3231_bitname)
+    
+    # אם DS3231 מחובר, ולא הוגדר בתחילה שרוצים לעדכן שעון מהרשת
+    if is_ds3231_connected and not ntp_update:
+        
+        # הגדרת DS3231
+        rtc_ds3231 = DS3231(ds3231_exit)
+        
+        #  קריאת הזמן מ-DS3231
+        ds3231_time = rtc_ds3231.datetime()
+        
+        # אם DS3231 מוגדר נכון ולא מאופס לשנת 2000 אז מעדכנים את הזמן שבו לתוך השעון הפנימי ויוצאים מהפונקצייה
+        if ds3231_time[0] > 2022: 
+            rtc_system.datetime(ds3231_time)
+            print("הזמן עודכן מתוך DS3231: ", ds3231_time)
+            time_source = 1
+            return
+        
+    # מכאן והלאה מעדכנים שעונים משרת NTP וזה דרוש בכל המקרים מלבד המקרה שכבר טופל לעיל שהשעון החיצוני מחובר ולא רוצים לעדכן 
+    # הדפסה למסך
+    tft.fill(0) # מחיקת המסך
+    #tft.write(FontHeb20,f'{reverse("השעון אינו מכוון")}',0,35)
+    tft.write(FontHeb25,f'{reverse("בתהליך עדכון הזמן מהרשת...")}',5,45)
+    tft.write(FontHeb25,f'{reverse("מחפש בקרבתך רשת ללא סיסמה")}',2,75)
+    tft.show() # כדי להציג את הנתונים על המסך
+    time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+                
+    # קבלת זמן ntp מהשרת ואם יש שגיאה המשתנה הזה יכיל את השגיאה
+    ntp_time = get_ntp_time() # אם אין שגיאה זה מחזיר את הזמן הנוכחי בשעון ישראל
+    
+           
+    #ניסיון לעדכן את השעון הפנימי מתוך שרת NTP
+    try:
+         
+        # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
+        year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
+        time_for_rtc_system = (year, month, day, get_rtc_weekday(week_day), hour, minute, second, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+        rtc_system.datetime(time_for_rtc_system) # זה מעדכן את השעון הפנימי בזמן הנוכחי בשעון ישראל
+        time_source = 2
+        
+        # אם DS3231 מחובר אז על הדרך מעדכנים גם בו את השעה שהתקבלה מהרשת
+        if is_ds3231_connected: 
+            # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
+            time_for_ds3231 = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
+            print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
+            # עדכון הזמן ב-DS3231
+            rtc_ds3231.datetime(time_for_ds3231)
+            print("DS3231 עודכן בהצלחה מהרשת. השעה לאחר העדכון היא:", rtc_ds3231.datetime())
+              
+        print("זמן שרת עודכן בהצלחה. השעה לאחר העדכון היא", rtc_system.datetime())
+        tft.fill(0) # מחיקת המסך
+        tft.write(FontHeb20,f'{reverse("הזמן עודכן בהצלחה מהרשת")}',30,50)
+        tft.show()
+        time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+    
+    # במקרה של שגיאה בעדכון הזמן מהשרת
+    except Exception as error:
+        
+        tft.fill(0) # מחיקת המסך
+        tft.write(FontHeb25,f'{reverse("שגיאה בעדכון הזמן מהרשת")}',20,20)
+        tft.write(FontHeb20,f'{str(error)}',0,50)
+        tft.write(FontHeb20,f'{reverse(ntp_time)}',20,70)
+        tft.show()
+        time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
+        print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
+        
+        # אם יש שגיאה בעדכון מהשרת וגם ds3231 לא מחובר אז מוכרחים להגדיר זמן שרירותי ידני כדי שהתוכנה תעבוד
+        # במקרה כזה הוספתי להדפסת השעה סימני קריאה כדי שידעו שהשעה הזו לא נכונה
+        if not is_ds3231_connected:
+            # אם כרגע בשעון הפנימי מעודכן זמן שבטוח לא טוב כי הוא מלפני שנת 2020 אז מעדכנים זמן שרירותי
+            if rtc_system.datetime()[0] < 2020:
+                print("אין שעון מחובר וגם אין רשת ולכן מעדכנים זמן ידני שרירותי")
+                tft.fill(0) # מחיקת המסך
+                tft.write(FontHeb25,f'{reverse("אין שעון מחובר וגם אין רשת")}',5,20)
+                tft.write(FontHeb25,f'{reverse("לכן מגדירים זמן שרירותי שגוי!")}',5,50)
+                tft.show()
+                time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+                manual_time = (2020, 12, 20, get_rtc_weekday(6), 16, 39, 0, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+                rtc_system.datetime(manual_time)
+                time_source = 3
+            else:
+                print("אין שעון מחובר וגם אין רשת אבל זמן המערכת אולי מדוייק ואולי לא לכן לא משנים אותו אבל זה כנראה לא מדוייק")
+                tft.fill(0) # מחיקת המסך
+                tft.write(FontHeb25,f'{reverse("אין שעון מחובר וגם אין רשת")}',5,20)
+                tft.write(FontHeb25,f'{reverse("הזמן נלקח מהשעון הפנימי")}',5,50)
+                tft.write(FontHeb25,f'{reverse("ייתכן שהזמן אינו נכון!")}',5,80)
+                tft.show()
+                time.sleep(3) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+                time_source = 4
+
 
 #################################################################################################
 
-
-    
-# פונקציה לקרוא את הזמן מ-DS3231 ולעדכן את ה-machine.RTC()
-def sync_rtc_with_ds3231():
-         
-    try:
-        
-        # נתינת חשמל חיובי לפין המתאים של ds3231
-        ds3231_plus = machine.Pin(17, machine.Pin.OUT)
-        ds3231_plus.value(1)
-
-        # יצירת אובייקט I2C (בהנחה שהשימוש בפינים 21 ו-22)
-        # בפין 12 חובה להשתמש דווקא ב softI2C
-        ds3231_i2c = machine.SoftI2C(scl=machine.Pin(16), sda=machine.Pin(21))
-        
-        # יצירת אובייקט RTC במערכת (machine RTC)
-        rtc_system = machine.RTC()
-
-        # יצירת אובייקט DS3231
-        rtc_ds3231 = DS3231(ds3231_i2c)
-        
-        # קריאת הזמן מ-DS3231
-        ds3231_time = rtc_ds3231.datetime()
-       
-        
-        ################################################################################################
-        # כל החלק הזה קשור לאופצייה של עדכון השעון הפנימי שבדרך כלל לא מתבצעת
-        
-        # ברירת המחדל היא לא לעדכן את השעון החיצוני
-        # ואם הבקר לא מחובר למחשב אסור לעדכן את השעון החיצוני לפי השעון הפנימי
-        # רק אם הבקר מחובר למחשב אפשר לעדכן את השעון החיצוני לפי שעון המחשב אם רוצים
-        # גם זה לא מומלץ כי יתן שעון קיץ בקיץ וכדאי לשמור את השעון החיצוני על שעון חורף
-        update_ds3231_manually = False # False or True  
-        update_ds3231_from_computer = False # False or True
-        
-        # הקביעה האם מעדכנים את השעון החיצוני מהשרת הולכת לפי המשתנה הגלובלי שנקבע בתחילת הקוד לפי האם הכפתור היה לחוץ
-        global ntp_update
-        update_ds3231_from_ntp = ntp_update
-
-        # זה חשוב מאוד לפעם הראשונה שבה השעון החיצוני עדיין לא עודכן ולכן השנה בו היא 2000 וזה גם גורם לשגיאות בתאריך העברי
-        if ds3231_time[0] < 2016 and not ntp_update: # אם השעון לא מכוון ולא מוגדר שצריך לכוון אותו אז יש להגדיר שצריך לכוון אותו
-            update_ds3231_from_ntp = True
-        
-        ##################################################################################3
-        # הבעיה היא שאם מפעילים את זה כאן זה יקרה רק אם יכבו את המכשיר וידליקו אותו
-        # לכן צריך לשים את זה בוויל טרו למטה שירוז כל הזמן ויבדוק מה התאריך ואז יקרא לפונקצייה הזו עם טרו על אפדייט פרום ארטיסי
-        #if time.localtime()[2] in [1,15]: # בכל ראשון ו 15 לחודש לועזי. אבל זה יקרה בכל הדלקה מחדש ביום זה
-        #if (time.time() // 86400) % 30 in [0,15]: # פעם ב 15 ימים לעדכן את השעון החיצוני. 86400 זה מספר השניות ביממה
-        #    update_ds3231_from_ntp = True
-            
-        ############################################################################################333
-            
-        
-        if update_ds3231_manually or update_ds3231_from_computer or update_ds3231_from_ntp:
-            
-            if update_ds3231_from_computer:
-            
-                # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
-                year, month, day, week_day, hour, minute, second, micro_second = rtc_system.datetime()
-                # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
-                new_time = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
-                
-                print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
-            
-                # עדכון הזמן ב-RTC
-                rtc_ds3231.datetime(new_time)
-
-                print("זמן המחשב עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
-
-                
-            elif update_ds3231_from_ntp:
-                
-                
-                # הדפסה למסך
-                tft.fill(0) # מחיקת המסך
-                tft.write(FontHeb25,f'{reverse("בתהליך עדכון רכיב השעון...")}',0,55)
-                tft.write(FontHeb20,f'{reverse("מחפש רשת ללא סיסמה...")}',0,75)
-                tft.show() # כדי להציג את הנתונים על המסך
-                
-                        
-                # קבלת זמן ntp מהשרת ואם יש שגיאה המשתנה הזה יכיל את השגיאה
-                ntp_time = get_ntp_time()
-                
-                try:
-                    
-                        
-                    # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
-                    year, month, day, hour, minute, second, week_day, year_day = ntp_time
-                    # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
-                    new_time = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
-                    
-                    
-                    print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
-                
-                    # עדכון הזמן ב-RTC
-                    rtc_ds3231.datetime(new_time)
-                    
-                    #tft.fill(0) # מחיקת המסך
-                    tft.write(FontHeb25,f'{reverse("השעון עודכן בהצלחה")}',30,95)
-                    tft.show() # כדי להציג את הנתונים על המסך
-                    time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
-
-                    print("זמן שרת עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
-                    # קריאה חוזרת לפונקצייה זו כדי שהשעון הפנימי יהיה מעודכן בזמן החדש
-                    ntp_update = False # לא לעדכן את השעון כי הוא כבר מעודכן
-                    return sync_rtc_with_ds3231()
-                    
-                except Exception as error:
-                    tft.write(FontHeb25,f'{reverse("שגיאה בעדכון השעון")}',30,95)
-                    tft.write(FontHeb20,f'{str(error)}',0,115)
-                    tft.write(FontHeb20,f'{reverse(ntp_time)}',0,140)
-                    tft.show() # כדי להציג את הנתונים על המסך
-                    time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
-                    print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
-                    
-                    # אם השעון החיצוני לא עודכן מעולם ולכן הוא בשנת 2000 אז צריך לקרוא שוב ושוב לפונקציית העדכון עד שהשעון החיצוני יעודכן
-                    # הקטע הזה מבוטל כרגע כי הוא יוצר בעיות ולכן אם השעון החיצוני לא עודכן מעולם יעוכן זמן ידני שמתעדכן להלן כשיש שגיאה
-                    #if ds3231_time[0] < 2016:
-                    #    ntp_update = True # צריך להמשיך לנסות לעדכן את השעון
-                    #    return sync_rtc_with_ds3231()
-
-            
-            elif update_ds3231_manually:
-                
-                # כאן אפשר לבחור לבד איזה נתונים לכוון לשעון החיצוני
-                year, month, day, hour, minute, second, weekday = 1988, 2, 24, 18, 45, 56, 1 # 1 = sunday                
-                new_time = (year, month, day, hour, minute, second, weekday)
-
-
-                print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
-                
-                # עדכון הזמן ב-RTC
-                rtc_ds3231.datetime(new_time)
-
-                print("זמן ידני עודכן בשעון החיצוני בהצלחה. השעה לאחר העדכון היא", rtc_ds3231.datetime())
-
-        ###################################################################################################################          
-            
-        # עדכון ה-machine RTC עם הזמן שנקרא מ-DS3231
-        rtc_system.datetime(ds3231_time)
-        print("Time synced with DS3231: ", ds3231_time)
-        
-        # כיבוי החשמל החיובי שהולך לשעון החיצוני כי כבר לא צריך אותו
-        # זה לא חובה
-        ds3231_plus.value(0)
-
-    except Exception as e:
-        print("Error reading from DS3231: ", e)
-        #במקרה של שגיאה, נגדיר זמן ידני ב-machine.RTC()
-        manual_time = (2020, 12, 20, get_rtc_weekday(6), 16, 39, 0, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
-        rtc_system.datetime(manual_time)
-        print("Time set manually in machine.RTC: ", manual_time)
-        
 
 # פונקצייה שמחשבת מה השעה הזמנית הנוכחית בהינתן הזמן הנוכחי וזמן הזריחה והשקיעה הקובעים
 # כל הזמנים צריכים להינתן בפורמט חותמת זמן
@@ -1060,13 +1078,15 @@ esberim = [
 
     
 
+# פעולה חשובה מאוד!!! בתחילת פעילות התוכנה: קריאה לפנקצייה שמטפלת בהגדרת ועדכון הזמן
+# זה קורה רק פעם בהתחלה ולא כל שנייה מחדש
+check_and_set_time()
+
 
 # את השורה הזו צריך להגדיר רק אם רוצים להגדיר ידנית את השעון הפנימי של הבקר וזה בדרך כלל לא יישומי כאן
 #machine.RTC().datetime((2025, 3, 26, get_rtc_weekday(4), 10, 59, 0, 0))  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
 
-# קריאה לפונקצייה שמעדכנת את שעון המכונה לפי שעון כרכיב נלווה ואם יש שגיאה או שהוא לא מחובר מעדכנת זמן אחר
-# זה קורה רק פעם בהתחלה ולא כל שנייה מחדש
-sync_rtc_with_ds3231()
+ 
 
 
 ########################################################################################3
@@ -1212,7 +1232,6 @@ def main():
     MoonPhase.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
     mp = MoonPhase(lto=location_offset_hours)  # datum is midnight last night כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
     phase = mp.phase()
-    #phase_percent = (phase / 0.5) * 100 if phase <= 0.5 else ((1 - phase) / 0.5) * 100 # זה לא נכון אבל נשאר לדוגמא
     phase_percent = round(phase * 100,1)
                     
     ###############################################################
@@ -1222,8 +1241,8 @@ def main():
     voltage = read_battery_voltage()
     voltage_string = f"{round(voltage,1)}v"
     
-    greg_date_string = "{:02d}/{:02d}/{:04d}".format(day, month, year)
-    time_string = "{:02d}:{:02d}:{:02d}".format(hour, minute, second)
+    greg_date_string = f'{day:02d}/{month:02d}/{year:04d}{"!" if time_source in [3,4] else ""}' 
+    time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
     
     # חישוב תאריך עברי נוכחי באמצעות פונקצייה שהוגדרה לעיל
     heb_date, heb_year_int = get_current_heb_date_string(year, month, day)
@@ -1232,8 +1251,9 @@ def main():
     # מוצאי יום עברי מוגדר משעה שהשמש בעומק יותר ממינוס 4 מעלות תחת האופק לאחר השקיעה ועד השעה 11:59 של אותה יממה של השקיעה שבזמן זה התאריך הלועזי והעברי אינם שווים. וזה רק כשיש שקיעה
     # מינוס ארבע מעלות תחת האופק שווה בערך לגובה השמש 20 דקות אחרי השקיעה בבמוצע שנתי בארץ ישראל זה כדי שלא לכתוב מוצאי שבת מיד בשקיעה
     motsaei = reverse("מוצאי: ") if sunset and current_timestamp > sunset and s_alt < -4 and (current_timestamp // 86400 == sunset_timestamp // 86400) else "" # מספר השניות ביממה הוא 86400
-    heb_date_string = f'{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei}'
-    magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
+    # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
+    heb_date_string = f'{"!!!" if time_source in [3,4] else ""}{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei}'
+    #magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
     coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}'
@@ -1253,7 +1273,7 @@ def main():
 
     # איזור גובה אזימוט ושלב ירח
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
-    tft.write(FontHeb20,f'{round(m_az)}°', 97,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{"  " if m_az < 10 else " " if m_az < 100 else ""}{round(m_az)}°', 97,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb20,f'{round(s_az)}°', 281,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
@@ -1268,8 +1288,13 @@ def main():
     tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך 
 
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
+    #tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
+    #tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
+    
+    # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
     tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
+
 
     # איזור קווי הפרדה. חייב להיות אחרי הכל כדי שיעלה מעל הכל
     tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
@@ -1396,14 +1421,15 @@ while True:
     # קריאת המתח של החשמל ולפי זה קביעת רמת התאורה האחורית של המסך כדי לחסוך בצריכת חשמל וכן הדלקת רכיבים נוספים שקשורים למסך ולכוח
     voltage = read_battery_voltage()
      
-    # אם כפתור הפעלת החישובים פועל והמתח של הסוללה לא נמוך מידי אז מפעילים את המסך ואת הכוח ואת החישובים וחוזרים עליהם שוב ושוב
-    # אם הסוללה כמעט ריקה אני לא רוצה שהמכשיר יידלק כי אז יאבד השעון הפנימי. אני רוצה שיישאר בשינה עד שייטעינו את הסוללה
-    if power_state and voltage > 3.8:
+    # אם כפתור הפעלת החישובים פועל אז מפעילים את המסך ואת הכוח ואת החישובים וחוזרים עליהם שוב ושוב
+    if power_state:
          
-        # כל שעה צריך לקרוא מחדש את השעה כי השעון הפנימי של הבקר עצמו לא מדוייק מספיק
-        # בדיקה אם עברה שעה (3600 שניות)
-        if time.time() - last_read_time >= 3600:
-            sync_rtc_with_ds3231()
+        # כל יממה צריך לקרוא מחדש את השעה כי השעון הפנימי של הבקר עצמו לא מדוייק מספיק
+        # אבל הוא כן מדוייק מספיק אם הוא פועל ברצף (בלי מצב שינה עמוקה) אפילו יותר מכמה יממות
+        # לכן פשרה טובה היא לעדכן פעם ביממה
+        # בדיקה אם עברה יממה (3600 שניות בכל שעה)
+        if time.time() - last_read_time >= 86400:
+            check_and_set_time()
             # עדכון זמן הקריאה האחרונה
             last_read_time = time.time()
        
@@ -1454,11 +1480,5 @@ while True:
             
 
     ##########################################################################################################################
-
-
-
-
-
-
 
 
