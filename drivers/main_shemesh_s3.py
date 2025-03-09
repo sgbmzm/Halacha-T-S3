@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "09/03/2025:02"
+VERSION = "09/03/2025:03"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -1329,7 +1329,7 @@ location_index = 0
 def save_default_location(index):
     """ שומר את המיקום הנוכחי בקובץ """
     try:
-        with open("halacha_clock/default_location.txt", "r") as f:
+        with open("halacha_clock/default_location.txt", "w") as f:
             f.write(str(index))
     except Exception as e:
         print("שגיאה בשמירת המיקום:", e)
