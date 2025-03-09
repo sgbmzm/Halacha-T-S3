@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "09/03/2025"
+VERSION = "09/03/2025:01"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -39,6 +39,8 @@ from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
 from halacha_clock.moonphase_sgb import MoonPhase  # ספריית חישובי שלב הירח
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import gematria_pyluach
+from halacha_clock import bme280 # לחיישן טמפרטורה ולחות
+from time import localtime # משמש הרבה בפונקציות של BME280
 
 # פונטים
 import halacha_clock.miriam40 as FontHeb40
@@ -121,11 +123,13 @@ def check_i2c_device(device_bitname):
     return is_device_connected, device_exit, device_exit_name
 
 
+#############################################################################################
 
+# קריאה לפונקצייה שהוגדרה לעיל ובדיקה ראשונית בתחילת ריצת התוכנה האם BME280 מחובר ולאיפה
+is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bitname)
 
-# קריאה לפונקצייה שהוגדרה לעיל ובדיקה ראשונית בתחילת ריצת התוכנה האם BME280 מחובר ולאיפה. כרגע אין לזה שימוש
-#is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bitname)
-
+# אם מחובר jhhai BME280 אז מוגדר אובייקט BME280 לצורך מד הטמפרטורה ואם לא מחובר אז המשתנה מוגדר להיות False
+bme = bme280.BME280(i2c=bme280_exit) if is_bme280_connected else False
 
 #############################################################################################
 
@@ -463,15 +467,15 @@ def check_and_set_time():
         # אם יש שגיאה בעדכון מהשרת וגם ds3231 לא מחובר אז מוכרחים להגדיר זמן שרירותי ידני כדי שהתוכנה תעבוד
         # במקרה כזה הוספתי להדפסת השעה סימני קריאה כדי שידעו שהשעה הזו לא נכונה
         if not is_ds3231_connected:
-            # אם כרגע בשעון הפנימי מעודכן זמן שבטוח לא טוב כי הוא מלפני שנת 2020 אז מעדכנים זמן שרירותי
-            if rtc_system.datetime()[0] < 2020:
+            # אם כרגע בשעון הפנימי מעודכן זמן שבטוח לא טוב כי הוא מלפני שנת 2025 אז מעדכנים זמן שרירותי
+            if rtc_system.datetime()[0] < 2025:
                 print("אין שעון מחובר וגם אין רשת ולכן מעדכנים זמן ידני שרירותי")
                 tft.fill(0) # מחיקת המסך
                 tft.write(FontHeb25,f'{reverse("אין שעון מחובר וגם אין רשת")}',5,20)
                 tft.write(FontHeb25,f'{reverse("לכן מגדירים זמן שרירותי שגוי!")}',5,50)
                 tft.show()
                 time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-                manual_time = (2020, 12, 20, get_rtc_weekday(6), 16, 39, 0, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+                manual_time = (2022, 5, 20, get_rtc_weekday(6), 16, 39, 35, 20)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
                 rtc_system.datetime(manual_time)
                 time_source = 3
             else:
@@ -1109,14 +1113,13 @@ location = locations[default_index] if 0 <= default_index < len(locations) else 
 ##############################################################################################
 
 
-# משתנה לשליטה על איזה נתונים יוצגו במסך בכל שנייה
-current_screen = 0.0  # 
-
+# משתנה לשליטה על איזה נתונים יוצגו בהסברים במסך של שעון ההלכה בכל שנייה
+current_screen_halach_clock = 0.0  # 
 
 
 
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
-def main():
+def main_halach_clock():
     
     ###########################################################################################
     # הגדרות מאוד חשובות על איזה זמן יתבצעו החישובים
@@ -1278,12 +1281,12 @@ def main():
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 81, s3lcd.GREEN, s3lcd.BLACK)
-
+    
     # איזור שורת הסברים מתחלפת
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
     #tft.write(FontHeb25,f' {magrab_time}',0,120, s3lcd.GREEN, s3lcd.BLACK) #
-    text = reverse(esberim[int(current_screen)][0])  # רוורס של הטקסט העברי
-    time_value = esberim[int(current_screen)][1]  # הערך להצגה
+    text = reverse(esberim[int(current_screen_halach_clock)][0])  # רוורס של הטקסט העברי
+    time_value = esberim[int(current_screen_halach_clock)][1]  # הערך להצגה
     CCC = f"{time_value}  :{text}" if time_value != "" else f"{text}"
     tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך 
 
@@ -1366,6 +1369,12 @@ def handle_button_press(specific_button):
 def toggle_location(pin):
     """ מטפל בלחיצה על הכפתור של שינוי וטיפול במיקומים ומבדיל בין לחיצה קצרה ללחיצה ארוכה """
     
+    #######################################################
+    # אין לפונקצייה הזו משמעות אם מוצג מד טמפרטורה ולחות
+    if is_bme280_connected:
+        return
+    #######################################################
+    
     # הכרזה על משתנים גלובליים שיטופלו בלחיצה על הכפתור
     global location_index
     global location
@@ -1389,16 +1398,149 @@ def toggle_location(pin):
         tft.show() # כדי להציג את הנתונים על המסך
         time.sleep(5) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
         
-       
-
 # חיבור הכפתור לפונקציה
 boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_location)
 
 
 
 
-######################################################################################################
+############################################################################################################################################################
+#################################################################   איזור הטיפול במד טמפרטורה לחות ולחץ ברומטרי  ###########################################
+############################################################################################################################################################
 
+
+# Variables for minimum and maximum tracking
+min_temp = float('inf')
+max_temp = float('-inf')
+min_humidity = float('inf')
+max_humidity = float('-inf')
+min_pressure = float('inf')
+max_pressure = float('-inf')
+
+min_time_temp = localtime()
+max_time_temp = localtime()
+min_time_humidity = localtime()
+max_time_humidity = localtime()
+min_time_pressure = localtime()
+max_time_pressure = localtime()
+
+# Variable for current day tracking
+current_date = localtime()[0:3]
+
+# משתנה לשליטה על איזה נתונים יוצגו במין/מקס במסך של מד הטמפרטורה בכל שנייה
+current_screen_bme280 = 0.0  # 0: Temperature, 1: Humidity, 2: Pressure
+
+
+def get_bme_280_data():
+    """Reads temperature, humidity, and pressure from BME280 sensor."""
+    temp = float(bme.temperature[:-1])
+    humidity = float(bme.humidity[:-1])
+    pressure = float(bme.pressure[:-3])
+    return temp, humidity, pressure
+
+def update_min_max(temp, humidity, pressure):
+    """Updates minimum and maximum values for temperature, humidity, and pressure."""
+    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
+    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
+
+    if temp < min_temp:
+        min_temp = temp
+        min_time_temp = localtime()
+    if temp > max_temp:
+        max_temp = temp
+        max_time_temp = localtime()
+
+    if humidity < min_humidity:
+        min_humidity = humidity
+        min_time_humidity = localtime()
+    if humidity > max_humidity:
+        max_humidity = humidity
+        max_time_humidity = localtime()
+
+    if pressure < min_pressure:
+        min_pressure = pressure
+        min_time_pressure = localtime()
+    if pressure > max_pressure:
+        max_pressure = pressure
+        max_time_pressure = localtime()
+
+def reset_min_max_if_new_day():
+    """Resets minimum and maximum values if the day changes."""
+    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
+    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
+    global current_date
+
+    today = localtime()[0:3]
+    if today != current_date:
+        current_date = today
+        min_temp = float('inf')
+        max_temp = float('-inf')
+        min_humidity = float('inf')
+        max_humidity = float('-inf')
+        min_pressure = float('inf')
+        max_pressure = float('-inf')
+        min_time_temp = localtime()
+        max_time_temp = localtime()
+        min_time_humidity = localtime()
+        max_time_humidity = localtime()
+        min_time_pressure = localtime()
+        max_time_pressure = localtime()
+
+def format_time(time_tuple):
+    """Formats time tuple to HH:MM."""
+    return '{:02}:{:02}'.format(time_tuple[3], time_tuple[4])
+
+def main_bme280():
+    """Displays sensor readings and additional information on OLED."""
+    global current_screen_bme280
+
+    temp, humidity, pressure = get_bme_280_data()
+    pressure -= 30 # הורדת הלחץ ב-30 זה תיקון הכרחי כי החיישן לא מודד טוב אלא נותן 30 יותר ממה שבאמת ולא יודע למה זה
+    # גובה התחנה
+    altitude = 320
+    # תיקון חישוב הלחץ לגובה פני הים 
+    delta_p = 12 * (altitude/100) # כלל האצבע: לחץ האוויר יורד בכ-12 hPa לכל 100 מטרים בגובה
+    pressure_at_sea_level = pressure + delta_p
+    update_min_max(temp, humidity, pressure_at_sea_level)
+    reset_min_max_if_new_day()
+    
+    # Calculate dew point
+    dew_point = temp - ((100 - humidity) / 5)
+
+    tft.fill(0)
+
+    t = localtime()
+    time_string = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:{:02d}".format(t[2], t[1], t[0], t[3], t[4], t[5]) # להוסיף יום בשבוע
+    tft.write(FontHeb25,f'         {time_string}', 0, 0)
+    tft.write(FontHeb20,f'                    {reverse("לחות")}                   {reverse("טמפ.")}',0,30)
+    tft.write(FontHeb40,f'{temp:.1f}c', 180, 20, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb40,f' {humidity:.1f}%', 0, 20, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb25,f'              {dew_point:.1f} c :{reverse("נקודת טל")}', 0, 54)
+    
+    tft.write(FontHeb25,f'{pressure:.1f} hPa  {reverse("לחץ בגובה")}', 50, 77)
+    tft.write(FontHeb25,f'{pressure_at_sea_level:.1f} hPa  {reverse("לחץ מתוקן")}', 50, 100)
+    
+    screen = int(current_screen_bme280)
+
+    if screen == 0:  # Temperature
+        tft.write(FontHeb25,f'{format_time(min_time_temp)} {reverse("בשעה")} {min_temp:.1f}c {reverse("מינ טמפ")}', 20, 125)
+        tft.write(FontHeb25,f'{format_time(max_time_temp)} {reverse("בשעה")} {max_temp:.1f}c    {reverse("מקס")}', 20, 145)
+
+    elif screen == 1:  # Humidity
+        tft.write(FontHeb25,f'{format_time(min_time_humidity)} {reverse("בשעה")} {min_humidity:.1f}% {reverse("מינ לחות")}', 10, 125)
+        tft.write(FontHeb25,f'{format_time(max_time_humidity)} {reverse("בשעה")} {max_humidity:.1f}%    {reverse("מקס")}', 10, 145)
+    
+    elif screen == 2:  # Pressure
+        tft.write(FontHeb25,f'{format_time(min_time_pressure)} {reverse("בשעה")} {min_pressure:.1f}hPa {reverse("מינ לחץ")}', 0, 125)
+        tft.write(FontHeb25,f'{format_time(max_time_pressure)} {reverse("בשעה")} {max_pressure:.1f}hPa    {reverse("מקס")}', 0, 145)
+        
+    tft.show()
+
+
+
+#############################################################################################################################################################
+###########################################################  סוף קוד המטפל במד טמפרטורה לחות ולחץ ברומטרי  #############################################
+#############################################################################################################################################################
 
 
 
@@ -1441,12 +1583,39 @@ while True:
         RD.value(1)
         LCD_POWER.value(1)
         
-        # הפעלת הפונקצייה הראשית והשהייה קטנה לפני שחוזרים עליה שוב
-        main()
-        current_screen = (current_screen + 0.25) % len(esberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
-        time.sleep(0.825)  # רענון כל שנייה אבל צריך לכוון את זה לפי כמה כבד הקוד עד שהתצוגה בפועל תתעדכן כל שנייה ולא יותר ולא בפחות
-        gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
+        ####################################################################################################
+        # זה גורם שאם מחברים את BME280 באמצע פעולת שעון ההלכה התוכנה תהפוך למד טמפרטורה
+        # בכל מקרה ניתן לשקול לבטל את הקטע הזה אם מעמיס בבדיקות מיותרות או פוגע במשהו
+        if not is_bme280_connected:
+            try:
+                # אני מניח ש BME280 מחובר ל original_i2c כדי לחסוך בבדיקות, אבל אפשר לבדוק עם check_i2c_device(bme280_bitname) כמו בתחילת הקוד
+                bme = bme280.BME280(i2c=original_i2c) 
+                is_bme280_connected = True
+            except:
+                bme = False
+                is_bme280_connected = False    
+        #####################################################################################################  
         
+        # אם נמצא בהפעלת המכשיר ש BME280 מחובר אז התוכנה מתפקדת כמד טמפרטורה
+        # אבל זה חייב להיות בניסיון כי ייתכן שהיה מחובר וכעת מנותק ואז נקבל שגיאה
+        # בכל מקרה אם מתקבלת שגיאה סימן שמנותק ולכן מגדירים את המשתנה לומר שמנותק ואז בשנייה הבאה יוצג שעון ההלכה
+        if is_bme280_connected:
+            try:
+                main_bme280()
+                current_screen_bme280 = (current_screen_bme280 + 0.1) % 3  # Cycle through screens (0, 1, 2)
+                time.sleep(1) # עדכון כל שניה
+                gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
+            except:
+                is_bme280_connected = False
+        
+        # אם BME280 לא מחובר אז התוכנה מתפקדת כשעון ההלכה
+        else:
+            # הפעלת הפונקצייה הראשית והשהייה קטנה לפני שחוזרים עליה שוב
+            main_halach_clock()
+            current_screen_halach_clock = (current_screen_halach_clock + 0.25) % len(esberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
+            time.sleep(0.825)  # רענון כל שנייה אבל צריך לכוון את זה לפי כמה כבד הקוד עד שהתצוגה בפועל תתעדכן כל שנייה ולא יותר ולא בפחות
+            gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
+            
     # אם הכוח לא פועל אז יש לכבות הכל
     else:
         
@@ -1480,5 +1649,6 @@ while True:
             
 
     ##########################################################################################################################
+
 
 
