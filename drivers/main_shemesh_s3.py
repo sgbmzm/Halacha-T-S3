@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "09/03/2025:03"
+VERSION = "09/03/2025:05"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -444,28 +444,42 @@ def check_and_set_time():
     # קבלת זמן ntp מהשרת ואם יש שגיאה המשתנה הזה יכיל את השגיאה
     ntp_time = get_ntp_time() # אם אין שגיאה זה מחזיר את הזמן הנוכחי בשעון ישראל
     
-           
-    #ניסיון לעדכן את השעון הפנימי מתוך שרת NTP
-    try:
-         
-        # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
-        year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
-        time_for_rtc_system = (year, month, day, get_rtc_weekday(week_day), hour, minute, second, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
-        rtc_system.datetime(time_for_rtc_system) # זה מעדכן את השעון הפנימי בזמן הנוכחי בשעון ישראל
-        time_source = 2
-        
-        # אם DS3231 מחובר אז על הדרך מעדכנים גם בו את השעה שהתקבלה מהרשת
-        if is_ds3231_connected: 
+    
+    # אם DS3231 מחובר אז על הדרך מעדכנים גם בו את השעה שהתקבלה מהרשת
+    if is_ds3231_connected:
+        try:
+            # הגדרת DS3231
+            rtc_ds3231 = DS3231(ds3231_exit)
+            year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
             # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
             time_for_ds3231 = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
             print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
             # עדכון הזמן ב-DS3231
             rtc_ds3231.datetime(time_for_ds3231)
             print("DS3231 עודכן בהצלחה מהרשת. השעה לאחר העדכון היא:", rtc_ds3231.datetime())
-              
+            tft.fill(0) # מחיקת המסך
+            tft.write(FontHeb25,f'{reverse("עודכן בהצלחה מהרשת")} DS3231',10,50)
+            tft.show()
+            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+        except Exception as error:
+            tft.fill(0) # מחיקת המסך
+            tft.write(FontHeb25,f'{reverse("כשלון בעדכון מהרשת")} DS3231',10,50)
+            print(error)
+            tft.write(FontHeb20,f'{error}',0,70)
+            tft.show()
+            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+        
+           
+    #ניסיון לעדכן את השעון הפנימי מתוך שרת NTP
+    try:   
+        # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
+        year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
+        time_for_rtc_system = (year, month, day, get_rtc_weekday(week_day), hour, minute, second, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+        rtc_system.datetime(time_for_rtc_system) # זה מעדכן את השעון הפנימי בזמן הנוכחי בשעון ישראל
+        time_source = 2       
         print("זמן שרת עודכן בהצלחה. השעה לאחר העדכון היא", rtc_system.datetime())
         tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb20,f'{reverse("הזמן עודכן בהצלחה מהרשת")}',30,50)
+        tft.write(FontHeb25,f'{reverse("הזמן עודכן בהצלחה מהרשת")}',10,70)
         tft.show()
         time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
     
@@ -473,7 +487,7 @@ def check_and_set_time():
     except Exception as error:
         
         tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb25,f'{reverse("שגיאה בעדכון הזמן מהרשת")}',20,20)
+        tft.write(FontHeb25,f'{reverse("שגיאה בעדכון הזמן מהרשת")}',10,20)
         tft.write(FontHeb20,f'{str(error)}',0,50)
         tft.write(FontHeb20,f'{reverse(ntp_time)}',20,70)
         tft.show()
@@ -501,9 +515,8 @@ def check_and_set_time():
                 tft.write(FontHeb25,f'{reverse("הזמן נלקח מהשעון הפנימי")}',5,50)
                 tft.write(FontHeb25,f'{reverse("ייתכן שהזמן אינו נכון!")}',5,80)
                 tft.show()
-                time.sleep(3) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-                time_source = 4
-
+                time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+                time_source = 4 
 
 #################################################################################################
 
