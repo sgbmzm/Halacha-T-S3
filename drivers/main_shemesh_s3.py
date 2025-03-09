@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "09/03/2025:01"
+VERSION = "09/03/2025:02"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -31,7 +31,7 @@ VERSION = "09/03/2025:01"
 # צריך לחשוב איך לגרום שהשעון יהיה מוגדר אוטומטית לשעון קיץ בתאריכים המתאימים.
 
 
-import time, math, machine, utime, esp32, network, ntptime
+import time, math, machine, utime, esp32, network, ntptime, os
 from machine import I2C, SoftI2C, Pin, ADC, PWM, RTC
 import gc # חשוב נורא לניקוי הזיכרון
 #import datetime as dt
@@ -59,7 +59,15 @@ tft.init() # כך חייבים לעשות
 
 # משתנה גלובלי שמפנה לשעון הפנימי של המכשיר
 rtc_system = machine.RTC()
+###################################################
 
+# זה זמני רק כדי למחוק את הקובץ main_bme280_s3 מבקרים שנמצא בהם הקובץ הזה מפני שהוא כבר לא בשימוש
+file_path = "/halacha_clock/main_bme280_s3.py"  # נתיב לקובץ שברצונך למחוק
+try:
+    os.remove(file_path)  # ניסיון למחוק
+    print(f"הקובץ {file_path} נמחק בהצלחה.")
+except OSError:
+    print("הקובץ לא נמצא או לא ניתן למחוק.")
 
 ##########################################################################################################
 # הגדרת ADC על GPIO4 לצורך קריאת כמה מתח המכשיר מקבל
@@ -1097,7 +1105,7 @@ check_and_set_time()
 # פונקציה לקרוא את מספר המיקום ברירת מחדל מתוך הקובץ
 def read_default_location():
     try:
-        with open("default_location.txt", "r") as f:
+        with open("halacha_clock/default_location.txt", "r") as f:
             return int(f.read().strip())  # קורא וממיר למספר שלם
     except:
         return 0  # אם יש שגיאה, ברירת מחדל תהיה 0
@@ -1321,7 +1329,7 @@ location_index = 0
 def save_default_location(index):
     """ שומר את המיקום הנוכחי בקובץ """
     try:
-        with open("default_location.txt", "w") as f:
+        with open("halacha_clock/default_location.txt", "r") as f:
             f.write(str(index))
     except Exception as e:
         print("שגיאה בשמירת המיקום:", e)
