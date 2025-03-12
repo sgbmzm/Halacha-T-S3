@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "12/03/2025:00"
+VERSION = "12/03/2025:01"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -1315,8 +1315,7 @@ def main_halach_clock():
 
     ##############################################################################
     # איזור שאחראי להגדיר ששעון ההלכה לא ייכנס אוטומטית למצב שינה בשבת
-    half_hour_befor_sunset = sunset - 1800 # 1800 שניות זה חצי שעה
-    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= half_hour_befor_sunset
+    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= (sunset - 1800) # 1800 שניות זה חצי שעה לפני השקיעה
     is_motsaei_shabat_luchot = normal_weekday == 7 and sunset and current_timestamp > sunset and s_alt < -8.5
     is_shabat = (normal_weekday == 6 and is_shishi_after_hadlakat_nerot_shabat) or (normal_weekday == 7 and not is_motsaei_shabat_luchot)
     global automatic_deepsleep
