@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "09/03/2025:05"
+VERSION = "12/03/2025:00"
 
 # סיכום קצר על התוצאות המעשיות של הכפתורים בקוד הזה
 # לחיצה על שתי הכפתורים בו זמנית כאשר המכשיר כבוי: עדכון תוכנת המכשיר
@@ -57,8 +57,6 @@ tft = tft_config.config(rotation=3) # כיוון סיבוב התצוגה שאנ�
 tft.init() # כך חייבים לעשות
 
 
-# משתנה גלובלי שמפנה לשעון הפנימי של המכשיר
-rtc_system = machine.RTC()
 ###################################################
 
 # זה זמני רק כדי למחוק את הקובץ main_bme280_s3 מבקרים שנמצא בהם הקובץ הזה מפני שהוא כבר לא בשימוש
@@ -77,6 +75,54 @@ try:
 except OSError:
     print(f"הקובץ {file_path_2} לא נמצא או שאי אפשר למוחקו.")
 
+####################################################################3
+
+
+# הגדרת הכפתורים הפיזיים במכשיר
+boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
+button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
+
+
+# משתנה גלובלי חשוב מאוד ששומר את השאלה האם לעדכן את השעון החיצוני מהרשת
+# ברירת המחדל היא שלא
+ntp_update = False
+# אבל אם בשעת הדלקת המכשיר שזו שעת תחילת ריצת הקוד כפתור בוט לחוץ אז כן לעדכן
+if boot_button.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
+    ntp_update = True 
+
+
+# משתנה גלובלי חשוב שקובע האם המשתמש רוצה בהירות מסך הכי גבוהה
+# זה יהיה בסוף הכי בהיר רק אם המכשיר מחובר לחשמל מעל 5 וולט מתח
+# ברירת המחדל היא שבהירות המסך נמוכה יותר ולא הכי גבוהה כי זה מסנוור
+# אבל אם מדליקים את המכשיר בלחיצה ארוכה על כפתור ההדלקה אז הבהירות תהיה הכי גבוהה שיש
+# זה חייב להיקבע כאן מתחילת ריצת הקוד כדי שלא יתנגש בדברים אחרים שהכפתור עושה
+behirut_max = False
+if button_14.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
+    behirut_max = True
+    
+# משתנה למעקב אחר מצב הכוח כלומר האם המכשיר כעת במצב שהפינים שנותנים כוח למסך מופעלים או כבויים
+# המשמעות של זה מגיעה לידי ביטוי בפונקצייה הראשית: main
+# זה משתנה חשוב נורא!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+power_state = True
+
+# משתנה מאוד חשוב שמגדיר האם המכשיר ייכנס למצב שינה אוטומטי לאחר מספר דקות של פעילות
+# המשתנה הזה מוגדר בתוך פונקציית main_halach_clock לפי אם שבת או יום חול
+automatic_deepsleep = False
+
+# פונקציה שמופעלת בלחיצה
+def toggle_power(pin):
+    global power_state
+    time.sleep_ms(50)  # debounce
+    if button_14.value() == 0:  # בודק אם הכפתור עדיין לחוץ
+        power_state = not power_state  # הפיכת המצב
+        while button_14.value() == 0:  # ממתין שהכפתור ישתחרר
+            time.sleep_ms(50)
+
+# חיבור הכפתור לפונקציה לחיצה על הכפתור קוראת לפונקצייה שמעדכנת את משתנה הכוח
+# כרגע מתבצע באמצעות כפתור בוט אבל אפשר גם באמצעות הכפתור השני
+button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
+
+
 ##########################################################################################################
 # הגדרת ADC על GPIO4 לצורך קריאת כמה מתח המכשיר מקבל
 adc = ADC(Pin(4))  
@@ -90,13 +136,41 @@ def read_battery_voltage():
     voltage = (raw_value / 4095) * 3.6  # ממירים את הערך האנלוגי למתח (בטווח של 0-3.6V)
     battery_voltage = voltage * 2  # מכפילים ב-2 בגלל מחלק המתח
     return battery_voltage
+
+##############################################3
+# הגדרת הפינים שצריך לכבות כדי שהמסך ייכבה והמכשיר יהיה בצריכת חשמל נמוכה
+LCD_POWER = Pin(15, Pin.OUT)
+RD = Pin(9, Pin.OUT)
+# לאחר מכן להפעיל PWM כדי לשלוט במידת התאורה האחורית של המסך
+BACKLIGHT = PWM(Pin(38, Pin.OUT), freq=1000)
+PWM_MAX = 1023 # תאורה הכי גבוהה
+PWM_MIN = 0 # התאורה כבוייה
+
+# קריאת המתח של החשמל ולפי זה קביעת רמת התאורה האחורית של המסך כדי לחסוך בצריכת חשמל וכן הדלקת רכיבים נוספים שקשורים למסך ולכוח
+voltage = read_battery_voltage()
+
+# אם המתח מעל 4.6 וולט והמשתמש רוצה בהירות מקס כפי שהוגדר בתחילת הקוד אז הבהירות הכי גבוהה
+# אם המשתמש לא הגדיר בתחילת הקוד בהירות הכי גבוהה אז הבהירות תהיה בינונית אם המתח גדול מ 4.6 כלומר שלא מחובר רק לסוללה הפנימית
+# בכל מקרה אחר מחובר רק לסוללה הפנימית או גם אם לחיצונית אבל היא חלשה הכוח הוא 255 שזה רבע בהירות, כדי לחסוך בחשמל
+duty_for_backligth = PWM_MAX if (voltage >= 4.6 and behirut_max) else 450 if voltage > 4.6 else 255
+
+tft.fill(0) # מחיקת המסך
+
+BACKLIGHT.duty(duty_for_backligth)
+RD.value(1)
+LCD_POWER.value(1)
+
+tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
+tft.show()
+time.sleep(1)
+
+
+#############################################
+
+# משתנה גלובלי שמפנה לשעון הפנימי של המכשיר
+rtc_system = machine.RTC()
+
 ###########################################################################################################
-
-# הגדרת הכפתורים הפיזיים במכשיר
-boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
-button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
-
-####################################################################################################
 
 #הגדרת ערוצי I2C הגדרת האם ולאיפה מחוברים DS3231 שזה שעון חיצוני וגם BME280 שזה חיישן טמפרטורה
 
@@ -115,7 +189,6 @@ original_i2c = I2C(scl=Pin(44), sda=Pin(43))
 # משתנים גלובליים של שמות ההתקנים שיכולים להיות מחוברים ליציאת I2C עבור תוכנה זו
 ds3231_bitname = 0x68 
 bme280_bitname = 0x76 # או 0x77 רק כאשר מחברים את הפין SDO ל-VCC
-
 
 # פונקצייה מאוד חשובה שבודקת האם ולאיפה מחוברים DS3231 או BME280 מתוך יציאות I2C שהוגדרו לעיל
 def check_i2c_device(device_bitname):
@@ -139,7 +212,6 @@ def check_i2c_device(device_bitname):
     return is_device_connected, device_exit, device_exit_name
 
 
-#############################################################################################
 
 # קריאה לפונקצייה שהוגדרה לעיל ובדיקה ראשונית בתחילת ריצת התוכנה האם BME280 מחובר ולאיפה
 is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bitname)
@@ -147,44 +219,6 @@ is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bit
 # אם מחובר jhhai BME280 אז מוגדר אובייקט BME280 לצורך מד הטמפרטורה ואם לא מחובר אז המשתנה מוגדר להיות False
 bme = bme280.BME280(i2c=bme280_exit) if is_bme280_connected else False
 
-#############################################################################################
-
-# משתנה גלובלי חשוב מאוד ששומר את השאלה האם לעדכן את השעון החיצוני מהרשת
-# ברירת המחדל היא שלא
-ntp_update = False
-# אבל אם בשעת הדלקת המכשיר שזו שעת תחילת ריצת הקוד כפתור בוט לחוץ אז כן לעדכן
-if boot_button.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
-    ntp_update = True 
-
-
-# משתנה גלובלי חשוב שקובע האם המשתמש רוצה בהירות מסך הכי גבוהה
-# זה יהיה בסוף הכי בהיר רק אם המכשיר מחובר לחשמל מעל 5 וולט מתח
-# ברירת המחדל היא שבהירות המסך נמוכה יותר ולא הכי גבוהה כי זה מסנוור
-# אבל אם מדליקים את המכשיר בלחיצה ארוכה על כפתור ההדלקה אז הבהירות תהיה הכי גבוהה שיש
-# זה חייב להיקבע כאן מתחילת ריצת הקוד כדי שלא יתנגש בדברים אחרים שהכפתור עושה
-behirut_max = False
-if button_14.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
-    behirut_max = True
-
-###############################################################3
-
-# משתנה למעקב אחר מצב הכוח כלומר האם המכשיר כעת במצב שהפינים שנותנים כוח למסך מופעלים או כבויים
-# המשמעות של זה מגיעה לידי ביטוי בפונקצייה הראשית: main
-# זה משתנה חשוב נורא!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-power_state = True  
-
-# פונקציה שמופעלת בלחיצה
-def toggle_power(pin):
-    global power_state
-    time.sleep_ms(50)  # debounce
-    if button_14.value() == 0:  # בודק אם הכפתור עדיין לחוץ
-        power_state = not power_state  # הפיכת המצב
-        while button_14.value() == 0:  # ממתין שהכפתור ישתחרר
-            time.sleep_ms(50)
-
-# חיבור הכפתור לפונקציה לחיצה על הכפתור קוראת לפונקצייה שמעדכנת את משתנה הכוח
-# כרגע מתבצע באמצעות כפתור בוט אבל אפשר גם באמצעות הכפתור השני
-button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 ############################################################################################
 
@@ -273,8 +307,6 @@ def decimal_hours_to_seconds(decimal_hours):
     seconds = (minutes_decimal - minutes) * 60  # המרת החלק השברי של הדקות לשניות
     total_seconds = hours * 3600 + minutes * 60 + seconds
     return total_seconds
-
-
 
 
 ##########################################################################################
@@ -390,8 +422,6 @@ def get_ntp_time():
 
 
 #######################################################################################3
-
-
 
 time_source_dic = {1: "שעה משעון חיצוני DS3231", 2: "שעה משרת NTP", 3: "שעה משעון פנימי שכנראה לא מדוייק", 4: "זמן שרירותי"}
 
@@ -518,6 +548,17 @@ def check_and_set_time():
                 time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
                 time_source = 4 
 
+
+
+# פעולה חשובה מאוד!!! בתחילת פעילות התוכנה: קריאה לפנקצייה שמטפלת בהגדרת ועדכון הזמן
+# זה קורה רק פעם בהתחלה ולא כל שנייה מחדש
+check_and_set_time()
+
+
+# את השורה הזו צריך להגדיר רק אם רוצים להגדיר ידנית את השעון הפנימי של הבקר וזה בדרך כלל לא יישומי כאן
+#machine.RTC().datetime((2025, 3, 26, get_rtc_weekday(4), 10, 59, 0, 0))  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+
+
 #################################################################################################
 
 
@@ -556,7 +597,7 @@ def calculate_temporal_time(timestamp, sunrise_timestamp, sunset_timestamp):
 # כל הזמנים צריכים להינתן בפורמט חותמת זמן
 # פונקצייה זו יכולה לפעול גם בכל פייתון רגיל היא לגמרי חישובית ולא תלוייה בכלום חוץ מהמשתנים שלה
 # חייבים לתת לה את זמן השקיעה המתאים כלומר השקיעה של היום או לאחר חצות הלילה השקיעה של אתמול הלועזי
-# כרגע פונקצייה זו לא פעילה.
+# כרגע פונקצייה זו לא פעילה ויש בה בעיות שונות
 def calculate_magrab_time(timestamp, sunset_timestamp):
         
         # חישוב כמה שניות עברו מאז הזריחה או השקיעה עד הזמן הנוכחי 
@@ -614,7 +655,7 @@ def get_sunrise_sunset_timestamps(current_timestamp, is_gra = True):
 
 
 #################################################################################################################################################################
-#############################################################3#####פונקציות לחישוב לוח עברי######################################################################
+##################################################################פונקציות לחישוב לוח עברי######################################################################
 ################################################################################################################################################################
 
 # מילון לשמות החודשים בעברית
@@ -933,7 +974,7 @@ def get_current_heb_date_string(greg_year, greg_month, greg_day):
     
 
 ################################################################################################################################################################
-#################################################################################################################################################################
+###############################################################   עד כאן פונקציות לחישוב לוח עברי   ############################################################
 #################################################################################################################################################################
 
 
@@ -1053,6 +1094,7 @@ def center(text, font):
     """
     return tft.width() // 2 - len(text) // 2 * (9 if font==FontHeb20 else 12 if font==FontHeb25 else 10) #font.MAX_WIDTH
 
+
 #  ההסברים מורכבים משני חלקים כל אחד: הסבר וערך. ההסבר עובר בסוף רוורס ולכן אם יש בו מספרים חייבים לעשות להם רוורס כאן כדי שהרוורס הסופי יישר אותם 
 esberim = [
     
@@ -1110,16 +1152,23 @@ esberim = [
     ]  
 
     
+# פונקצייה שמחזירה את השעה במיקום שבו נמצאים כרגע כחותמת זמן
+def get_current_location_timestamp():
+    ###########################################################################################
+    # הגדרות מאוד חשובות על איזה זמן יתבצעו החישובים
+    # כרגע השעון של הבקר הוא שעון ישראל ואני ממיר את זה ליוטיסי ומשם לזמן מקומי והכל בחותמות זמן באמצעות פונקצייה שהוגדרה לעיל
+    # בעתיד אולי שעון המכונה יהיה יוטיסי ואז יצטרכו לשנות בהתאם.
+    # גם צריך לטפל ב אר.טי.סי. החיצוני שאולי הוא יהיה באיזור זמן יוטיסי
+    rtc_system_timestamp =  time.time() # או: utime.mktime(utime.localtime())
+    is_location_dst = True if is_now_israel_DST() else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
+    israel_offset_seconds = get_generic_utc_offset(35, dst=is_location_dst, in_seconds = True) # ישראל זה קו אורך 35
+    current_utc_timestamp = rtc_system_timestamp - israel_offset_seconds # כי ישראל היא אחרי יוטיסי
+    location_offset_hours = get_generic_utc_offset(location["long"], dst=is_location_dst)
+    location_offset_seconds = get_generic_utc_offset(location["long"], dst=is_location_dst, in_seconds = True)
+    current_location_timestamp = current_utc_timestamp + location_offset_seconds
+    # עכשיו הגענו לנתון הכי חשוב שהוא חותמת הזמן המקומית הנוכחית
+    return current_location_timestamp, location_offset_hours, location_offset_seconds
 
-# פעולה חשובה מאוד!!! בתחילת פעילות התוכנה: קריאה לפנקצייה שמטפלת בהגדרת ועדכון הזמן
-# זה קורה רק פעם בהתחלה ולא כל שנייה מחדש
-check_and_set_time()
-
-
-# את השורה הזו צריך להגדיר רק אם רוצים להגדיר ידנית את השעון הפנימי של הבקר וזה בדרך כלל לא יישומי כאן
-#machine.RTC().datetime((2025, 3, 26, get_rtc_weekday(4), 10, 59, 0, 0))  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
-
- 
 
 
 ########################################################################################3
@@ -1146,29 +1195,13 @@ location = locations[default_index] if 0 <= default_index < len(locations) else 
 current_screen_halach_clock = 0.0  # 
 
 
-
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
 def main_halach_clock():
-    
-    ###########################################################################################
-    # הגדרות מאוד חשובות על איזה זמן יתבצעו החישובים
-    # כרגע השעון של הבקר הוא שעון ישראל ואני ממיר את זה ליוטיסי ומשם לזמן מקומי והכל בחותמות זמן באמצעות פונקצייה שהוגדרה לעיל
-    # בעתיד אולי שעון המכונה יהיה יוטיסי ואז יצטרכו לשנות בהתאם.
-    # גם צריך לטפל ב אר.טי.סי. החיצוני שאולי הוא יהיה באיזור זמן יוטיסי
-    rtc_system_timestamp =  time.time() # או: utime.mktime(utime.localtime())
-    is_location_dst = True if is_now_israel_DST() else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
-    israel_offset_seconds = get_generic_utc_offset(35, dst=is_location_dst, in_seconds = True) # ישראל זה קו אורך 35
-    current_utc_timestamp = rtc_system_timestamp - israel_offset_seconds # כי ישראל היא אחרי יוטיסי
-    location_offset_hours = get_generic_utc_offset(location["long"], dst=is_location_dst)
-    location_offset_seconds = get_generic_utc_offset(location["long"], dst=is_location_dst, in_seconds = True)
-    current_location_timestamp = current_utc_timestamp + location_offset_seconds
-    # עכשיו הגענו לנתון הכי חשוב שהוא חותמת הזמן המקומית הנוכחית
+       
+    # קבלת הזמן המקומי למיקום המבוקש כחותמת זמן - באמצעות פונקצייה שהוגדרה לעיל    
+    current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
     current_timestamp = current_location_timestamp
-    
-    ##############################################################################################
-    
-    
-    
+            
     # משתנה ששולט על חישוב גובה השמש במעלות לשיטת המג"א ונועד במקור לחישוב דמדומים
     # אם כותבים 16 זה אומר מינוס 16
     # אם רוצים פלוס אז אולי צריך לעשות +16 אבל לא יודע אם זה יעבוד
@@ -1183,17 +1216,15 @@ def main_halach_clock():
     
         
     # יצירת אובייקט RiSet
-    RiSet.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
+    RiSet.tim = round(current_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
     #RiSet.sinho_sun_riset = 0.0 # אם רוצים שזריחה ושקיעה של השמש יהיו לפי זריחה ושקיעה גיאומטריים ולא לפי מינוס 0.833. אם לא מגדירים אז כברירת מחדל יהיה 0.833 מינוס
     riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, tl=MGA_deg) # lto=location_offset_hours
-    
-    
+      
     # שמירת כל הנתונים על היום הנוכחי כי כולם נוצרים ביחד בעת הגדרת "riset" או בעת שמשנים לו יום
     sunrise, sunset, mga_sunrise, mga_sunset = riset.sunrise(1), riset.sunset(1), riset.tstart(1), riset.tend(1)
-    
-    
+       
     # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
-    tm = utime.localtime(current_location_timestamp)
+    tm = utime.localtime(current_timestamp)
     year, month, day, rtc_week_day, hour, minute, second, micro_second = (tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0)
         
     # חישוב מה השעה הנוכחית בשבר עשרוני
@@ -1261,7 +1292,7 @@ def main_halach_clock():
 
 
     # חישובים שלב הירח הנוכחי. בעתיד לסדר לזה tim
-    MoonPhase.tim = round(current_location_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
+    MoonPhase.tim = round(current_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
     mp = MoonPhase(lto=location_offset_hours)  # datum is midnight last night כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
     phase = mp.phase()
     phase_percent = round(phase * 100,1)
@@ -1279,12 +1310,25 @@ def main_halach_clock():
     # חישוב תאריך עברי נוכחי באמצעות פונקצייה שהוגדרה לעיל
     heb_date, heb_year_int = get_current_heb_date_string(year, month, day)
     heb_year_string = gematria_pyluach._num_to_str(heb_year_int, thousands=False, withgershayim=False)
-    hebrew_weekday = heb_weekday_names(get_normal_weekday(rtc_week_day))
+    normal_weekday = get_normal_weekday(rtc_week_day)
+    hebrew_weekday = heb_weekday_names(normal_weekday)
+
+    ##############################################################################
+    # איזור שאחראי להגדיר ששעון ההלכה לא ייכנס אוטומטית למצב שינה בשבת
+    half_hour_befor_sunset = sunset - 1800 # 1800 שניות זה חצי שעה
+    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= half_hour_befor_sunset
+    is_motsaei_shabat_luchot = normal_weekday == 7 and sunset and current_timestamp > sunset and s_alt < -8.5
+    is_shabat = (normal_weekday == 6 and is_shishi_after_hadlakat_nerot_shabat) or (normal_weekday == 7 and not is_motsaei_shabat_luchot)
+    global automatic_deepsleep
+    automatic_deepsleep = False if is_shabat else True
+    ##############################################################################
+    
     # מוצאי יום עברי מוגדר משעה שהשמש בעומק יותר ממינוס 4 מעלות תחת האופק לאחר השקיעה ועד השעה 11:59 של אותה יממה של השקיעה שבזמן זה התאריך הלועזי והעברי אינם שווים. וזה רק כשיש שקיעה
     # מינוס ארבע מעלות תחת האופק שווה בערך לגובה השמש 20 דקות אחרי השקיעה בבמוצע שנתי בארץ ישראל זה כדי שלא לכתוב מוצאי שבת מיד בשקיעה
-    motsaei = reverse("מוצאי: ") if sunset and current_timestamp > sunset and s_alt < -4 and (current_timestamp // 86400 == sunset_timestamp // 86400) else "" # מספר השניות ביממה הוא 86400
+    is_motsaei = sunset and current_timestamp > sunset and s_alt < -4 and current_timestamp > sunrise # current_timestamp > sunrise אומר שמדובר לפני 12 בלילה
+    motsaei_string = reverse("מוצאי: ") if is_motsaei else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_string = f'{"!!!" if time_source in [3,4] else ""}{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei}'
+    heb_date_string = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_year_string)} {reverse(heb_date)} ,{reverse(hebrew_weekday)}{motsaei_string}'
     #magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
@@ -1337,10 +1381,7 @@ def main_halach_clock():
     tft.show() # כדי להציג את הנתונים על המסך
     
     
-    
-    
-    ################################################################################
-
+################################################################################
 
 
 # אינדקס המיקום הנוכחי משתנה גלובלי חשוב מאוד
@@ -1535,12 +1576,16 @@ def main_bme280():
     
     # Calculate dew point
     dew_point = temp - ((100 - humidity) / 5)
+    
+    # קרירת המתח שהמכשיר מקבל
+    voltage = read_battery_voltage()
+    voltage_string = f"{round(voltage,1)}v"
 
     tft.fill(0)
 
     t = localtime()
     time_string = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:{:02d}".format(t[2], t[1], t[0], t[3], t[4], t[5]) # להוסיף יום בשבוע
-    tft.write(FontHeb25,f'         {time_string}', 0, 0)
+    tft.write(FontHeb25,f'  {voltage_string}    {time_string}', 0, 0)
     tft.write(FontHeb20,f'                    {reverse("לחות")}                   {reverse("טמפ.")}',0,30)
     tft.write(FontHeb40,f'{temp:.1f}c', 180, 20, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f' {humidity:.1f}%', 0, 20, s3lcd.GREEN, s3lcd.BLACK)
@@ -1573,24 +1618,45 @@ def main_bme280():
 
 
 
-# משתנה לזמן הקריאה האחרונה
-last_read_time = time.time()
+# משתנים חשובים מאוד לשמירת הזמן בתחילה כדי להשוות אליהם בהמשך ולדעת האם לעדכן דברים או לכבות את המסך וכדומה
+t_time = time.time()
+start_time_for_check_and_set_time = t_time
+start_time_for_automatic_deepsleep = t_time
 
-
-# הגדרת הפינים שצריך לכבות כדי שהמסך ייכבה והמכשיר יהיה בצריכת חשמל נמוכה
-LCD_POWER = Pin(15, Pin.OUT)
-RD = Pin(9, Pin.OUT)
-# לאחר מכן להפעיל PWM כדי לשלוט במידת התאורה האחורית של המסך
-BACKLIGHT = PWM(Pin(38, Pin.OUT), freq=1000)
-PWM_MAX = 1023 # תאורה הכי גבוהה
-PWM_MIN = 0 # התאורה כבוייה
-
+# משתנה מאוד חשוב ששומר את המתח בשנייה הקודמת כדי להשוות אליו ולבדוק האם חובר חשמל או נותק
+last_voltage = read_battery_voltage()
 
 # לולאת רענון שחוזרת על עצמה כל הזמן והיא זו שמפעילה את הפונקצייה הראשית כל שנייה מחדש
 while True:
 
     # קריאת המתח של החשמל ולפי זה קביעת רמת התאורה האחורית של המסך כדי לחסוך בצריכת חשמל וכן הדלקת רכיבים נוספים שקשורים למסך ולכוח
-    voltage = read_battery_voltage()
+    current_voltage = read_battery_voltage()
+        
+    # קורא את הזמן העדכני בכל שנייה מחדש
+    current_time = time.time()
+    
+    # תיקון כדי שניתוק BME280 לאחר דקות ממהדלקה לא יכניס מייד למצב שינה
+    if is_bme280_connected:
+        # עדכון זמן הקריאה האחרונה
+        start_time_for_automatic_deepsleep = current_time
+            
+    # תיקון כדי שניתוק מהחשמל ייתן ארכה של כמה שניות לפני כיבוי    
+    if last_voltage > 4.6 and current_voltage < 4.6:
+        start_time_for_automatic_deepsleep = current_time
+    
+    # אם מוגדר שינה אוטומטית והמתח מראה שמחובר לסוללה ולא לחשמל ועברו ... דקות מאז הפעלת התוכנה אז מגדירים את המשתנה power_state לכבות את המכשיר
+    # המשתנה automatic_deepsleep מוגדר בפונקציית main_halach_clock שבשבת לא מכבים את המסך או נכנסים למצב שינה
+    if automatic_deepsleep and current_voltage < 4.6 and (current_time - start_time_for_automatic_deepsleep) >= 20: # 300 שניות זה 5 דקות
+        start_time_for_automatic_deepsleep = current_time
+        power_state = False
+         
+    # תיקון כדי שחיבור לחשמל יפעיל את המסך. אבל זה עוזר רק אם המכשיר לא בשינה עמוקה
+    if last_voltage < 4.6 and current_voltage > 4.6:
+        power_state = True
+            
+    # חייבים לאפס את זה כל שנייה מחדש כדי שנוכל להשוות את השנייה הקודמת לשנייה הנוכחית
+    last_voltage = current_voltage
+                 
      
     # אם כפתור הפעלת החישובים פועל אז מפעילים את המסך ואת הכוח ואת החישובים וחוזרים עליהם שוב ושוב
     if power_state:
@@ -1599,10 +1665,11 @@ while True:
         # אבל הוא כן מדוייק מספיק אם הוא פועל ברצף (בלי מצב שינה עמוקה) אפילו יותר מכמה יממות
         # לכן פשרה טובה היא לעדכן פעם ביממה
         # בדיקה אם עברה יממה (3600 שניות בכל שעה)
-        if time.time() - last_read_time >= 86400:
+        if current_time - start_time_for_check_and_set_time >= 86400:
             check_and_set_time()
             # עדכון זמן הקריאה האחרונה
-            last_read_time = time.time()
+            start_time_for_check_and_set_time = current_time
+            
        
         # אם המתח מעל 4.6 וולט והמשתמש רוצה בהירות מקס כפי שהוגדר בתחילת הקוד אז הבהירות הכי גבוהה
         # אם המשתמש לא הגדיר בתחילת הקוד בהירות הכי גבוהה אז הבהירות תהיה בינונית אם המתח גדול מ 4.6 כלומר שלא מחובר רק לסוללה הפנימית
@@ -1648,13 +1715,9 @@ while True:
     # אם הכוח לא פועל אז יש לכבות הכל
     else:
         
-        # ב S3 ליליגו עובד רק על כפתור 14 ולא על כפתור בוט שהוא אפס
-        wake1 = Pin(14, Pin.IN, Pin.PULL_UP)
-        
-        # הגדרת כפתור ההשכמה מהשינה העמוקה
-        #level parameter can be: esp32.WAKEUP_ANY_HIGH or esp32.WAKEUP_ALL_LOW
-        esp32.wake_on_ext0(pin = wake1, level = esp32.WAKEUP_ALL_LOW)
-        
+        # שינה עמוקה בוטלה כרגע מכמה סיבות חשובות. בין הייתר היא גרמה למריחות במסך. גם השעון הפנימי לא נשאר עדכני בשינה עמוקה.
+        # במקום זה רק מכבים את המסך והכוח.
+        '''
         # הדפסה למסך
         tft.fill(0) # מחיקת המסך
         tft.write(FontHeb25,f'{reverse("כניסה למצב שינה...")}',30,20) # דווקא בגובה של שורת התאריך כדי שאם יהיו מריחות הם יסתירו רק את שורה זו
@@ -1665,19 +1728,23 @@ while True:
         tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
         tft.show() 
         time.sleep(0.3)
-          
+        '''  
         # כיבוי הכוח והתאורה וכל מה שקשור למסך.
         # כנראה לי שזה לא הכרחי ולא מקטין את צריכת החשמל יותר מאשר המצב בשניה עמוקה רגילה.
         BACKLIGHT.duty(PWM_MIN)
         RD.value(0)
         LCD_POWER.value(0)
+        '''
+        # ב S3 ליליגו עובד רק על כפתור 14 ולא על כפתור בוט שהוא אפס
+        wake1 = Pin(14, Pin.IN, Pin.PULL_UP)
+        
+        # הגדרת כפתור ההשכמה מהשינה העמוקה
+        #level parameter can be: esp32.WAKEUP_ANY_HIGH or esp32.WAKEUP_ALL_LOW
+        esp32.wake_on_ext0(pin = wake1, level = esp32.WAKEUP_ALL_LOW)
         
         # מצב שינה. היציאה ממצב שינה מתבצעת באמצעות לחיצה על הכפתור שמעיר את המכשיר וקורא שוב למיין שקורא שוב למיין שמש
         machine.deepsleep()
-
+        '''
             
-
-    ##########################################################################################################################
-
 
 
