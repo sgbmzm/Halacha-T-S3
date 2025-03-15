@@ -1196,8 +1196,8 @@ def main_halach_clock():
     # משתנה ששולט על חישוב גובה השמש במעלות לשיטת המג"א ונועד במקור לחישוב דמדומים
     # אם כותבים 16 זה אומר מינוס 16
     # אם רוצים פלוס אז אולי צריך לעשות +16 אבל לא יודע אם זה יעבוד
-    # אם עושים None או False או 0 זה לא מחושב כלל ולכן אם רוצים כאן זריחה גיאומטרית חייבים להגדיר 0.00001
-    MGA_deg = 16 # אם רוצים ששעות זמניות לא יחושבו בכלל לפי המג"א צריך לעשות None או False או 0 ולכן אם רוצים גרא גיאומטרי חייבים לעשות 0.0001
+    # אם עושים None או False או 0 זה לא מחושב כלל (ולכן אם במקרה רוצים כאן זריחה גיאומטרית חייבים להגדיר 0.00001)
+    MGA_deg = 16 
     
     # הצהרה על משתנים גלובליים ששומרים את הזמנים הדרושים
     global sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise
@@ -1230,23 +1230,23 @@ def main_halach_clock():
     # אולי במקור היה צריך להיות פחות 0.833 אבל למעשה יותר מדוייק 0.808
     m_alt = m_alt - 0.45
     
-     
+      
     # אם מדובר אחרי 12 בלילה ולפני הזריחה ויודעים את זה לפי ששעת הזריחה מאוחרת מהרגע הנוכחי לפי אחת משתי השיטות ההלכתיות
     # מגדרים את יום האתמול ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום האתמול    
     
     # כל החישובים נעשים רק אם יש זריחה כי אולי במיקום הזה אין בכלל זריחה ביום זה
     if sunrise:
         
-        if (current_timestamp < sunrise) or (MGA_deg and current_timestamp < mga_sunrise):
+        if (current_timestamp < sunrise) or (mga_sunrise and current_timestamp < mga_sunrise):
             riset.set_day(-1)
-            yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1) if MGA_deg else None
+            yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1) if mga_sunrise else None
             tomorrow_sunrise, mga_tomorrow_sunrise = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
             
         # אם מדובר אחרי השקיעה לפי אחת השיטות ולפני השעה 12 בלילה
         # מגדרים את יום המחר ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום המחר
-        elif (current_timestamp > sunrise and current_timestamp >= sunset) or (MGA_deg and current_timestamp > mga_sunrise and current_timestamp >= mga_sunset):
+        elif (current_timestamp > sunrise and current_timestamp >= sunset) or (mga_sunrise and current_timestamp > mga_sunrise and current_timestamp >= mga_sunset):
             riset.set_day(1)
-            tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1) if MGA_deg else None, 
+            tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1) if mga_sunrise else None 
             yesterday_sunset, mga_yesterday_sunset = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
         
     
@@ -1263,23 +1263,21 @@ def main_halach_clock():
         minutes_in_temporal_hour = ""
         
     
-    # רק אם רוצים ואפשר לחשב זריחות ושקיעות לפי מגן אברהם
-    if MGA_deg:
-        
-        # רק אם השמש מגיעה לגובה זה כי אולי במיקום הזה היא לא מגיעה כרגע לגובה זה
-        if mga_sunrise:
     
-            # חישוב מחדש עבור שיטת מגן אברהם    
-            # חישוב מה הם הזריחה והשקיעה הקובעים את השעון של שעה זמנית באמצעות פונקצייה שהוגדרה למעלה    
-            mga_sunrise_timestamp, mga_sunset_timestamp = get_sunrise_sunset_timestamps(current_timestamp, is_gra = False)
-             
-            # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
-            mga_temporal_time, seconds_in_mga_temporal_hour = calculate_temporal_time(current_timestamp, mga_sunrise_timestamp, mga_sunset_timestamp)
-            minutes_in_mga_temporal_hour = str(round(seconds_in_mga_temporal_hour / 60,1)) # str(convert_seconds(seconds_in_mga_temporal_hour))
-        else:
-            
-            mga_temporal_time = reverse("שגיאה  ")
-            minutes_in_mga_temporal_hour = ""
+    # רק אם השמש מגיעה לגובה זה כי אולי במיקום הזה היא לא מגיעה כרגע לגובה זה
+    if mga_sunrise:
+
+        # חישוב מחדש עבור שיטת מגן אברהם    
+        # חישוב מה הם הזריחה והשקיעה הקובעים את השעון של שעה זמנית באמצעות פונקצייה שהוגדרה למעלה    
+        mga_sunrise_timestamp, mga_sunset_timestamp = get_sunrise_sunset_timestamps(current_timestamp, is_gra = False)
+         
+        # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
+        mga_temporal_time, seconds_in_mga_temporal_hour = calculate_temporal_time(current_timestamp, mga_sunrise_timestamp, mga_sunset_timestamp)
+        minutes_in_mga_temporal_hour = str(round(seconds_in_mga_temporal_hour / 60,1)) # str(convert_seconds(seconds_in_mga_temporal_hour))
+    else:
+        
+        mga_temporal_time = reverse("שגיאה  ")
+        minutes_in_mga_temporal_hour = ""
 
 
     # חישובים שלב הירח הנוכחי. בעתיד לסדר לזה tim
