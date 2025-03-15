@@ -1255,7 +1255,7 @@ def main_halach_clock():
          
         # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
         temporal_time, seconds_in_temporal_hour = calculate_temporal_time(current_timestamp, sunrise_timestamp, sunset_timestamp)
-        minutes_in_temporal_hour = str(round(seconds_in_temporal_hour / 60)) # str(convert_seconds(seconds_in_temporal_hour))
+        minutes_in_temporal_hour = str(round(seconds_in_temporal_hour / 60,1)) # str(convert_seconds(seconds_in_temporal_hour))
              
     else:
         
@@ -1275,7 +1275,7 @@ def main_halach_clock():
              
             # חישוב שעון שעה זמנית על הזריחה והשקיעה באמצעות פונקצייה שהוגדרה למעלה
             mga_temporal_time, seconds_in_mga_temporal_hour = calculate_temporal_time(current_timestamp, mga_sunrise_timestamp, mga_sunset_timestamp)
-            minutes_in_mga_temporal_hour = str(round(seconds_in_mga_temporal_hour / 60)) # str(convert_seconds(seconds_in_mga_temporal_hour))
+            minutes_in_mga_temporal_hour = str(round(seconds_in_mga_temporal_hour / 60,1)) # str(convert_seconds(seconds_in_mga_temporal_hour))
         else:
             
             mga_temporal_time = reverse("שגיאה  ")
@@ -1331,12 +1331,13 @@ def main_halach_clock():
     tft.write(FontHeb25,f'{heb_date_string}',center(heb_date_string,FontHeb25),20)
     
     # איזור שעה זמנית
-    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,47)
-    tft.write(FontHeb20,f'                  {minutes_in_mga_temporal_hour}                           {minutes_in_temporal_hour}',0,62, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,46)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{minutes_in_temporal_hour}',283,62, s3lcd.CYAN, s3lcd.BLACK)
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 50, s3lcd.GREEN, s3lcd.BLACK)
-
+        tft.write(FontHeb20,f'{minutes_in_mga_temporal_hour}',102,62, s3lcd.CYAN, s3lcd.BLACK)
+  
     # איזור גובה אזימוט ושלב ירח
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
     tft.write(FontHeb20,f'{"  " if m_az < 10 else " " if m_az < 100 else ""}{round(m_az)}°', 97,100, s3lcd.CYAN, s3lcd.BLACK)
