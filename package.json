@@ -4,6 +4,7 @@
     ["halacha_clock/bme280.py", "github:sgbmzm/Halacha-T-S3/drivers/bme280.py"],
     ["halacha_clock/ds3231.py", "github:sgbmzm/Halacha-T-S3/drivers/ds3231.py"],
     ["halacha_clock/gematria_pyluach.py", "github:sgbmzm/Halacha-T-S3/drivers/gematria_pyluach.py"],
+    ["halacha_clock/mpy_heb_date.py", "github:sgbmzm/Halacha-T-S3/drivers/mpy_heb_date.py"],
     ["main.py", "github:sgbmzm/Halacha-T-S3/drivers/main.py"],
     ["halacha_clock/update_halacha_clock.py", "github:sgbmzm/Halacha-T-S3/drivers/update_halacha_clock.py"],
     ["halacha_clock/miriam20.py", "github:sgbmzm/Halacha-T-S3/drivers/miriam20.py"],
