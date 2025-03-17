@@ -19,13 +19,40 @@ def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
     }
     return HOLIDAYS.get((heb_day_int, heb_month_int), False)
 
-def get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year):
+def get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year, is_kislev_29):
     """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג הקל כלומר מדרבנן אם מדובר בחג קל, אחרת מחזירה False """
+    
+    #  שימו לב שהצומות יכולים להתאחר ליום ראשון אם הם חלים בשבת
+    # הם גם יכולים להקדים ליום חמישי אם הם חלים ביום שישי למעט עשרה בטבת שלא מקדימים אותו 
+    # אבל הקדמת ואיחור הצומות לא מטופל כאן כרגע
+    
     LITE_HOLIDAYS = {
-        (25, 3 if is_leap_year else 9): "ראשון של חנוכה",
-        (14, 7 if is_leap_year else 6): "פורים דפרזים",
-        (15, 7 if is_leap_year else 6): "פורים דמוקפין",
-        (9, 12 if is_leap_year else 11): "תשעה באב"    
+
+        (16, 1): "א דחול המועד סוכות",
+        (17, 1): "ב דחול המועד סוכות",
+        (18, 1): "ג דחול המועד סוכות",
+        (19, 1): "ד דחול המועד סוכות",
+        (20, 1): "ה דחול המועד סוכות",
+        (21, 1): "הושענה רבא",
+        (25, 3): "נר ראשון של חנוכה",
+        (26, 3): "נר שני של חנוכה",
+        (27, 3): "נר שלישי של חנוכה",
+        (28, 3): "נר רביעי של חנוכה",
+        (29, 3): "נר חמישי של חנוכה",
+        (1, 4) if is_kislev_29 else (30, 3): "נר שישי של חנוכה",
+        (2, 4) if is_kislev_29 else (1, 4): "נר שביעי של חנוכה",
+        (3, 4) if is_kislev_29 else (2, 4): "נר שמיני של חנוכה",
+        (14, 7) if is_leap_year else (14, 6): "פורים דפרזים",
+        (15, 7) if is_leap_year else (15, 6): "פורים דמוקפין",
+        (16, 8) if is_leap_year else (16, 7): "א דחול המועד פסח",
+        (17, 8) if is_leap_year else (17, 7): "ב דחול המועד פסח",
+        (18, 8) if is_leap_year else (18, 7): "ג דחול המועד פסח",
+        (19, 8) if is_leap_year else (19, 7): "ד דחול המועד פסח",
+        (20, 8) if is_leap_year else (20, 7): "ה דחול המועד פסח",
+        (3, 1): "צום גדליה",
+        (10, 4): "צום עשרה בטבת", 
+        (17, 11) if is_leap_year else (17, 10): "צום שבעה עשר בתמוז", 
+        (9, 12) if is_leap_year else (9, 11): "צום תשעה באב",    
     }
     return LITE_HOLIDAYS.get((heb_day_int, heb_month_int), False)
 
@@ -342,6 +369,9 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     
     # האם השנה מעוברת
     is_leap_year = length_heb_year_in_days in [383, 384, 385]
+
+    # האם כסלו חסר כלומר שיש בו רק 29 ימים זה תלוי באורך השנה
+    is_kislev_29 = length_heb_year_in_days in [353, 383]
     
     # חישוב שם החודש והיום בעברית
     heb_day_string = heb_month_day_names(heb_day_int)
@@ -353,9 +383,12 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     
     holiday_name = get_holiday_name(heb_day_int, heb_month_int, is_leap_year)
     
-    lite_holiday_name = get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year)
+    lite_holiday_name = get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year, is_kislev_29)
+
+    is_rosh_chodesh = heb_day_int in [1,30]
     
-    return heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name
+    return heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name, is_rosh_chodesh
+    
 
 def get_today_heb_date_string():
     # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
@@ -363,11 +396,11 @@ def get_today_heb_date_string():
     year, month, day, rtc_week_day, hour, minute, second, micro_second = (tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0)
     #normal_weekday = get_normal_weekday(rtc_week_day)
     #hebrew_weekday = heb_weekday_names(normal_weekday)
-    heb_date_string, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
+    heb_date_string, _, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
     return heb_date_string
     
 def get_if_greg_is_heb_holiday(greg_year, greg_month, greg_day):
-    _, _, holiday_name, lite_holiday_name = get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day)
+    _, _, holiday_name, lite_holiday_name, is_rosh_chodesh = get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day)
     return holiday_name
 
 def get_is_today_heb_holiday():
