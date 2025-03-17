@@ -7,7 +7,7 @@ def get_normal_weekday(rtc_weekday):
     return weekday_dict.get(rtc_weekday)
 
 def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
-    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג אם מדובר בחג, אחרת מחזירה None """
+    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג אם מדובר בחג, אחרת מחזירה False """
     HOLIDAYS = {
         (1, 1): "ראש השנה",
         (10, 1): "יום כיפור",
@@ -17,16 +17,16 @@ def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
         (21, 8 if is_leap_year else 7): "שביעי של פסח",
         (6, 10 if is_leap_year else 9): "שבועות"  
     }
+    return HOLIDAYS.get((heb_day_int, heb_month_int), False)
 
 def get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year):
-    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג הקל כלומר מדרבנן אם מדובר בחג קל, אחרת מחזירה None """
+    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג הקל כלומר מדרבנן אם מדובר בחג קל, אחרת מחזירה False """
     LITE_HOLIDAYS = {
         (25, 3 if is_leap_year else 9): "ראשון של חנוכה",
         (14, 7 if is_leap_year else 6): "פורים דפרזים",
         (15, 7 if is_leap_year else 6): "פורים דמוקפין",
         (9, 12 if is_leap_year else 11): "תשעה באב"    
     }
-
     return LITE_HOLIDAYS.get((heb_day_int, heb_month_int), False)
 
 
