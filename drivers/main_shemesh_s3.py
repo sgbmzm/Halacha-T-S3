@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "17/03/2025:03"
+VERSION = "17/03/2025:04"
 
 ####################################################################################################################
 # משתנה מאוד חשוב ששולט על השאלה האם הכיבוי האוטמטי או כשלוחצים על כפתור הכיבוי יהיה למצב שינה עמוקה או רק לכיבוי מסך
@@ -1020,7 +1020,7 @@ def main_halach_clock():
     # מהשקיעה עד 12 בלילה מוסיפים את המילה ליל כי היום בשבוע והתאריך העברי מקבלים לתאריך הלועזי של מחר
     leil_string = reverse("ליל: ") if heb_date_is_next_greg_date else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_to_print = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(hebrew_weekday)}{leil_string}'
+    heb_date_to_print = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)}{leil_string}'
     #magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
