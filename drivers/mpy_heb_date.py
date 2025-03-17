@@ -1,23 +1,47 @@
-
-import utime
 from halacha_clock import gematria_pyluach
+import utime
+
+
+def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
+    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג אם מדובר בחג, אחרת מחזירה None """
+    HOLIDAYS = {
+        (1, 1): "ראש השנה",
+        (10, 1): "יום כיפור",
+        (15, 1): "ראשון של סוכות",
+        (22, 1): "שמיני עצרת",
+        (15, 8 if is_leap_year else 7): "ראשון של פסח",
+        (21, 8 if is_leap_year else 7): "שביעי של פסח",
+        (6, 10 if is_leap_year else 9): "שבועות"  
+    }
+
+def get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year):
+    """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג הקל כלומר מדרבנן אם מדובר בחג קל, אחרת מחזירה None """
+    LITE_HOLIDAYS = {
+        (25, 3 if is_leap_year else 9): "ראשון של חנוכה"
+        (14, 7 if is_leap_year else 6): "פורים דפרזים"
+        (15, 7 if is_leap_year else 6): "פורים דמוקפין"
+        (9, 12 if is_leap_year else 11): "תשעה באב"    
+    }
+
+    return LITE_HOLIDAYS.get((heb_day_int, heb_month_int), False)
+
 
 # מילון לשמות החודשים בעברית
-def heb_month_names(number, is_leep=False):
+def heb_month_names(number, is_leap=False):
     d={
         1:"תשרי",
         2:"מרחשוון",
         3:"כסלו",
         4:"טבת",
         5:"שבט",
-        6:"אדר" if not is_leep else "אדר-א",
-        7:"ניסן" if not is_leep else "אדר-ב",
-        8:"אייר" if not is_leep else "ניסן",
-        9:"סיוון" if not is_leep else "אייר",
-        10:"תמוז" if not is_leep else "סיוון",
-        11:"אב" if not is_leep else "תמוז",
-        12:"אלול" if not is_leep else "אב",
-        13:"" if not is_leep else "אלול",}
+        6:"אדר" if not is_leap else "אדר-א",
+        7:"ניסן" if not is_leap else "אדר-ב",
+        8:"אייר" if not is_leap else "ניסן",
+        9:"סיוון" if not is_leap else "אייר",
+        10:"תמוז" if not is_leap else "סיוון",
+        11:"אב" if not is_leap else "תמוז",
+        12:"אלול" if not is_leap else "אב",
+        13:"" if not is_leap else "אלול",}
     return d.get(number)
 
 # מילון לשמות הימים בחודש בעברית
@@ -91,7 +115,7 @@ def move_heb_date(start_day, start_month, year_length, days_to_move):
         raise ValueError("אורך השנה לא תקין")
 
     # האם השנה מעוברת
-    is_leep = year_length in [383, 384, 385]
+    is_leap = year_length in [383, 384, 385]
 
     # חישוב היום החדש
     current_day = start_day
@@ -239,7 +263,7 @@ def get_geus_rosh_hasha_greg(year, from_heb_year = False):
     pesach_weekday = c
     
     # האם זו שנה עברית מעוברת
-    heb_leep_year = shana_bemachzor19 in (3,6,8,11,14,17,19)
+    heb_leap_year = shana_bemachzor19 in (3,6,8,11,14,17,19)
     
     #############################################################################################################
     # מציאת התאריך הלועזי של ראש השנה של השנה הבא לאחר הפסח ראו ספר שערים ללוח העברי עמוד 204
@@ -307,20 +331,38 @@ def get_days_from_rosh_hashana(greg_year, greg_month, greg_day):
     return days_from_rosh_hashana, length_heb_year_in_days, rosh_hashana_heb_year_int
 
 # פונקצייה שמחזירה את התאריך העברי הנוכחי כסטרינג וגם את מספר השנה העברית כאינט בהתבסס על הפונקציות הקודמות
-def get_heb_date_from_greg_date(greg_year, greg_month, greg_day):
+def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     days_from_rosh_hashana, length_heb_year_in_days, heb_year_int = get_days_from_rosh_hashana(greg_year, greg_month, greg_day)
     rosh_hashana_day, rosh_hashana_month = 1,1
     heb_day_int, heb_month_int = move_heb_date(rosh_hashana_day, rosh_hashana_month, length_heb_year_in_days, days_from_rosh_hashana)
     
     # האם השנה מעוברת
-    is_leep_year = length_heb_year_in_days in [383, 384, 385]
+    is_leap_year = length_heb_year_in_days in [383, 384, 385]
     
     # חישוב שם החודש והיום בעברית
     heb_day_string = heb_month_day_names(heb_day_int)
-    heb_month_string = heb_month_names(heb_month_int, is_leep_year)
-    heb_year_string = gematria_pyluach._num_to_str(heb_year_int, thousands=False, withgershayim=False)
-    
+    heb_month_string = heb_month_names(heb_month_int, is_leap_year)
+    heb_year_string = gematria_pyluach._num_to_str(heb_year_int, thousands=False, withgershayim=False)   
     heb_date_string = f'{heb_day_string} {heb_month_string} {heb_year_string}'
     
-    return heb_day_int, heb_month_int, heb_year_int, heb_date_string
+    tuple_heb_date = (heb_day_int, heb_month_int, heb_year_int)
     
+    holiday_name = get_holiday_name(heb_day_int, heb_month_int, is_leap_year)
+    
+    lite_holiday_name = get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year)
+    
+    return heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name
+
+def get_today_heb_date_string():
+    year, month, day, rtc_week_day, hour, minute, second, micro_second = utime.localtime(utime.time())
+    heb_date_string, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
+    return heb_date_string
+    
+def get_if_greg_is_heb_holiday(greg_year, greg_month, greg_day):
+    _, _, holiday_name, lite_holiday_name = get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day)
+    return holiday_name
+
+def get_is_today_heb_holiday():
+    year, month, day, rtc_week_day, hour, minute, second, micro_second = utime.localtime(utime.time())
+    return get_if_greg_is_heb_holiday(year, month, day)
+
