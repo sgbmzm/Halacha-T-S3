@@ -1,6 +1,10 @@
 from halacha_clock import gematria_pyluach
 import utime
 
+# מוציא את מספר היום בשבוע הנורמלי לפי סדר מתוך שעון המכשיר שמוגדר RTC
+def get_normal_weekday(rtc_weekday):
+    weekday_dict = {6:1,0:2,1:3,2:4,3:5,4:6,5:7}
+    return weekday_dict.get(rtc_weekday)
 
 def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
     """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג אם מדובר בחג, אחרת מחזירה None """
@@ -357,6 +361,8 @@ def get_today_heb_date_string():
     # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
     tm = utime.localtime(utime.time())
     year, month, day, rtc_week_day, hour, minute, second, micro_second = (tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0)
+    #normal_weekday = get_normal_weekday(rtc_week_day)
+    #hebrew_weekday = heb_weekday_names(normal_weekday)
     heb_date_string, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
     return heb_date_string
     
