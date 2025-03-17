@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "17/03/2025:02"
+VERSION = "17/03/2025:03"
 
 ####################################################################################################################
 # משתנה מאוד חשוב ששולט על השאלה האם הכיבוי האוטמטי או כשלוחצים על כפתור הכיבוי יהיה למצב שינה עמוקה או רק לכיבוי מסך
@@ -984,7 +984,7 @@ def main_halach_clock():
     
     
     # חישוב תאריך עברי נוכחי באמצעות ספרייה ייעודית. כמו כן מחושב האם מדובר בחג
-    heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(g_year, g_month, g_day)
+    heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name, is_rosh_chodesh = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(g_year, g_month, g_day)
     # חישוב היום בשבוע המתאים לתאריך העברי הנכון לרגע זה
     heb_weekday = get_normal_weekday(g_rtc_week_day)
     # שם בעברית של היום העברי המתאים לתאריך העברי הנוכחי המוגדר משקיעה מישורית לשקיעה מישורית
@@ -1033,7 +1033,7 @@ def main_halach_clock():
     
     # איזור תאריך עברי כולל צבע מתאים לימי חול ולשבתות וחגים
     # צבע הטקסט והרקע של התאריך העברי: ביום חול לבן על שחור ובשבת וחג שחור על צהוב, ובחגים דרבנן כולל תעניות שחור על ציאן
-    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name else (s3lcd.WHITE, s3lcd.BLACK)
+    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name or is_rosh_chodesh else (s3lcd.WHITE, s3lcd.BLACK)
     tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
    
     # איזור שעה זמנית
