@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "17/03/2025:01"
+VERSION = "17/03/2025:02"
 
 ####################################################################################################################
 # משתנה מאוד חשוב ששולט על השאלה האם הכיבוי האוטמטי או כשלוחצים על כפתור הכיבוי יהיה למצב שינה עמוקה או רק לכיבוי מסך
@@ -985,23 +985,29 @@ def main_halach_clock():
     
     # חישוב תאריך עברי נוכחי באמצעות ספרייה ייעודית. כמו כן מחושב האם מדובר בחג
     heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(g_year, g_month, g_day)
-    normal_weekday = get_normal_weekday(g_rtc_week_day)
-    hebrew_weekday = mpy_heb_date.heb_weekday_names(normal_weekday)
+    # חישוב היום בשבוע המתאים לתאריך העברי הנכון לרגע זה
+    heb_weekday = get_normal_weekday(g_rtc_week_day)
+    # שם בעברית של היום העברי המתאים לתאריך העברי הנוכחי המוגדר משקיעה מישורית לשקיעה מישורית
+    heb_weekday_string = mpy_heb_date.heb_weekday_names(heb_weekday)
 
     ##############################################################################
     # איזור שאחראי להגדיר ששעון ההלכה לא ייכנס אוטומטית למצב שינה בשבת ובחג. אך לא מחושב יום טוב שני
     
-    # חישוב האם שבת
-    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= (sunset - 1800) # 1800 שניות זה חצי שעה לפני השקיעה
-    is_motsaei_shabat_luchot = normal_weekday == 7 and sunset and current_timestamp > sunset and s_alt < -8.5
-    is_shabat = (normal_weekday == 6 and is_shishi_after_hadlakat_nerot_shabat) or (normal_weekday == 7 and not is_motsaei_shabat_luchot)
+    # חישוב האם שבת. שבת מוגדרת מהשקיעה של סוף יום שישי עד השקיעה של סוף שבת
+    is_shabat = heb_weekday == 7
     
-    # הגדרת ביטול כיבוי אוטומטי בשבת וחג
+    # חישוב תוספות לשבת כלומר מיום שישי חצי שעה לפני השקיעה עד השקיעה וכן בשבת מהשקיעה ועד צאת שבת שבלוחות
+    normal_weekday = get_normal_weekday(rtc_week_day) # חישוב היום בשבוע של התאריך הלועזי בדווקא
+    half_hour_before_sunset_until_sunset =  sunset and current_timestamp >= (sunset - 1800) and current_timestamp < sunset # 1800 שניות זה חצי שעה לפני השקיעה
+    sunset_until_motsaei_shabat_luchot = sunset and current_timestamp > sunset and s_alt < -8.5
+    is_tosafot_leshabat = (normal_weekday == 6 and half_hour_before_sunset_until_sunset) or (normal_weekday == 7 and sunset_until_motsaei_shabat_luchot)
+    
+    
+    # הגדרת ביטול כיבוי אוטומטי בשבת וחג. וכן מחצי שעה לפני השקיעה בשבת ועד מוצאי שבת שבלוחות
     global automatic_deepsleep
-    automatic_deepsleep = False if is_shabat or holiday_name else True
+    automatic_deepsleep = False if is_shabat or is_tosafot_leshabat or holiday_name else True
     ##############################################################################
-    
-
+      
     # מכאן והלאה ההדפסות למסך
     
     # קרירת המתח שהמכשיר מקבל
