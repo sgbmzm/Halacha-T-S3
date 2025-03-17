@@ -1027,7 +1027,7 @@ def main_halach_clock():
     
     # איזור תאריך עברי כולל צבע מתאים לימי חול ולשבתות וחגים
     # צבע הטקסט והרקע של התאריך העברי: ביום חול לבן על שחור ובשבת וחג שחור על צהוב, ובחגים דרבנן כולל תעניות שחור על ציאן
-    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name else (s3lcd.WHITE, bg=s3lcd.BLACK)
+    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name else (s3lcd.WHITE, s3lcd.BLACK)
     tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
    
     # איזור שעה זמנית
