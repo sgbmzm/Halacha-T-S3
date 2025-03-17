@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "16/03/2025:02"
+VERSION = "17/03/2025:00"
 
 ####################################################################################################################
 # משתנה מאוד חשוב ששולט על השאלה האם הכיבוי האוטמטי או כשלוחצים על כפתור הכיבוי יהיה למצב שינה עמוקה או רק לכיבוי מסך
@@ -978,7 +978,7 @@ def main_halach_clock():
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
     
     # חישוב תאריך עברי נוכחי באמצעות ספרייה ייעודית
-    heb_day_int, heb_month_int, heb_year_int, heb_date_string = mpy_heb_date.get_heb_date_from_greg_date(year, month, day)
+    heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(year, month, day)
     normal_weekday = get_normal_weekday(rtc_week_day)
     hebrew_weekday = mpy_heb_date.heb_weekday_names(normal_weekday)
 
