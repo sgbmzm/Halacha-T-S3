@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "17/03/2025:00"
+VERSION = "17/03/2025:01"
 
 ####################################################################################################################
 # משתנה מאוד חשוב ששולט על השאלה האם הכיבוי האוטמטי או כשלוחצים על כפתור הכיבוי יהיה למצב שינה עמוקה או רק לכיבוי מסך
@@ -961,13 +961,47 @@ def main_halach_clock():
         minutes_in_mga_temporal_hour = ""
 
 
-    # חישובים שלב הירח הנוכחי. בעתיד לסדר לזה tim
+    ###########################################################
+    # חישוב שלב הירח הנוכחי
     MoonPhase.tim = round(current_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
-    mp = MoonPhase(lto=location_offset_hours)  # datum is midnight last night כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
+    mp = MoonPhase(lto=location_offset_hours)  # כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
     phase = mp.phase()
     phase_percent = round(phase * 100,1)
-                    
-    ###############################################################
+                      
+    ##################################################################################################################3
+    # משתנה שמחזיר טרו אם הזמן הוא כרגע אחרי השקיעה ולפני 12 בלילה ולכן התאריך העברי הנכון הוא התאריך הלועזי הבא
+    heb_date_is_next_greg_date = sunset and current_timestamp > sunset and current_timestamp > sunrise # current_timestamp > sunrise אומר שמדובר לפני 12 בלילה
+    
+    # אם התאריך העברי מקביל לתאריך הלועזי של מחר כי מדובר אחרי השקיעה ולפני 12 בלילה מחשבים את הנתונים על מחר
+    if heb_date_is_next_greg_date:    
+        # חישוב התאריך הלועזי של מחר כלומר בדיוק עוד 24 שעות. זה נדרש כי התאריך העברי מהשקיעה עד 12 בלילה שווה לתאריך הלועזי של מחר
+        tomorrow_tm = utime.localtime(current_timestamp+86400) # יש 86400 שניות ביממה
+        g_year, g_month, g_day, g_rtc_week_day = (tomorrow_tm[0], tomorrow_tm[1], tomorrow_tm[2], tomorrow_tm[6])
+    
+    # בכל מקרה אחר התאריך העברי מקביל לתאריך הלועזי הנוכחי
+    else:
+        g_year, g_month, g_day, g_rtc_week_day = year, month, day, rtc_week_day
+    
+    
+    # חישוב תאריך עברי נוכחי באמצעות ספרייה ייעודית. כמו כן מחושב האם מדובר בחג
+    heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(g_year, g_month, g_day)
+    normal_weekday = get_normal_weekday(g_rtc_week_day)
+    hebrew_weekday = mpy_heb_date.heb_weekday_names(normal_weekday)
+
+    ##############################################################################
+    # איזור שאחראי להגדיר ששעון ההלכה לא ייכנס אוטומטית למצב שינה בשבת ובחג. אך לא מחושב יום טוב שני
+    
+    # חישוב האם שבת
+    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= (sunset - 1800) # 1800 שניות זה חצי שעה לפני השקיעה
+    is_motsaei_shabat_luchot = normal_weekday == 7 and sunset and current_timestamp > sunset and s_alt < -8.5
+    is_shabat = (normal_weekday == 6 and is_shishi_after_hadlakat_nerot_shabat) or (normal_weekday == 7 and not is_motsaei_shabat_luchot)
+    
+    # הגדרת ביטול כיבוי אוטומטי בשבת וחג
+    global automatic_deepsleep
+    automatic_deepsleep = False if is_shabat or holiday_name else True
+    ##############################################################################
+    
+
     # מכאן והלאה ההדפסות למסך
     
     # קרירת המתח שהמכשיר מקבל
@@ -977,26 +1011,10 @@ def main_halach_clock():
     greg_date_string = f'{day:02d}/{month:02d}/{year:04d}{"!" if time_source in [3,4] else ""}' 
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
     
-    # חישוב תאריך עברי נוכחי באמצעות ספרייה ייעודית
-    heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name = mpy_heb_date.get_heb_date_and_holiday_from_greg_date(year, month, day)
-    normal_weekday = get_normal_weekday(rtc_week_day)
-    hebrew_weekday = mpy_heb_date.heb_weekday_names(normal_weekday)
-
-    ##############################################################################
-    # איזור שאחראי להגדיר ששעון ההלכה לא ייכנס אוטומטית למצב שינה בשבת
-    is_shishi_after_hadlakat_nerot_shabat =  normal_weekday == 6 and sunset and current_timestamp >= (sunset - 1800) # 1800 שניות זה חצי שעה לפני השקיעה
-    is_motsaei_shabat_luchot = normal_weekday == 7 and sunset and current_timestamp > sunset and s_alt < -8.5
-    is_shabat = (normal_weekday == 6 and is_shishi_after_hadlakat_nerot_shabat) or (normal_weekday == 7 and not is_motsaei_shabat_luchot)
-    global automatic_deepsleep
-    automatic_deepsleep = False if is_shabat else True
-    ##############################################################################
-    
-    # מוצאי יום עברי מוגדר משעה שהשמש בעומק יותר ממינוס 4 מעלות תחת האופק לאחר השקיעה ועד השעה 11:59 של אותה יממה של השקיעה שבזמן זה התאריך הלועזי והעברי אינם שווים. וזה רק כשיש שקיעה
-    # מינוס ארבע מעלות תחת האופק שווה בערך לגובה השמש 20 דקות אחרי השקיעה בבמוצע שנתי בארץ ישראל זה כדי שלא לכתוב מוצאי שבת מיד בשקיעה
-    is_motsaei = sunset and current_timestamp > sunset and s_alt < -4 and current_timestamp > sunrise # current_timestamp > sunrise אומר שמדובר לפני 12 בלילה
-    motsaei_string = reverse("מוצאי: ") if is_motsaei else ""
+    # מהשקיעה עד 12 בלילה מוסיפים את המילה ליל כי היום בשבוע והתאריך העברי מקבלים לתאריך הלועזי של מחר
+    leil_string = reverse("ליל: ") if heb_date_is_next_greg_date else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_to_print = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(hebrew_weekday)}{motsaei_string}'
+    heb_date_to_print = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(hebrew_weekday)}{leil_string}'
     #magrab_time = calculate_magrab_time(current_timestamp, sunset_timestamp) if sunrise else reverse("שגיאה  ") # רק אם יש זריחה ושקיעה אפשר לחשב
     utc_offset_string = 'utc+0' if location_offset_hours == 0 else f'utc+{location_offset_hours}' if location_offset_hours >0 else "utc"+str(location_offset_hours)
     #coteret = f'{reverse(location["heb_name"])} - {reverse("השעון ההלכתי")}'
@@ -1006,8 +1024,12 @@ def main_halach_clock():
 
     # איזור כותרת
     tft.write(FontHeb20,f'{coteret}',center(coteret,FontHeb20),0, s3lcd.GREEN, s3lcd.BLACK) #fg=s3lcd.WHITE, bg=s3lcd.BLACK בכוונה מוגדר אחרי השורה הקודמת בגלל הרקע הצהוב
-    tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20)
     
+    # איזור תאריך עברי כולל צבע מתאים לימי חול ולשבתות וחגים
+    # צבע הטקסט והרקע של התאריך העברי: ביום חול לבן על שחור ובשבת וחג שחור על צהוב, ובחגים דרבנן כולל תעניות שחור על ציאן
+    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name else (s3lcd.WHITE, bg=s3lcd.BLACK)
+    tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
+   
     # איזור שעה זמנית
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,46)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
@@ -1016,13 +1038,13 @@ def main_halach_clock():
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 50, s3lcd.GREEN, s3lcd.BLACK)
         tft.write(FontHeb20,f'{minutes_in_mga_temporal_hour}',102,62, s3lcd.CYAN, s3lcd.BLACK)
   
-    # איזור גובה אזימוט ושלב ירח
+    # איזור גובה אזימוט שמש וירח ושלב ירח
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
-    tft.write(FontHeb20,f'{"  " if m_az < 10 else " " if m_az < 100 else ""}{round(m_az)}°', 97,100, s3lcd.CYAN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'{round(s_az)}°', 281,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{"  " if m_az < 10 else " " if m_az < 100 else ""}{round(m_az)}°', 98,100, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{"  " if s_az < 10 else " " if s_az < 100 else ""}{round(s_az)}°', 281,100, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb25,f' {" " if m_alt > 0 else ""}{" " if abs(m_alt) <10 else ""}{m_alt:.3f}°',0,80, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
-    tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 135, 81, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 140, 81, s3lcd.GREEN, s3lcd.BLACK)
     
     # איזור שורת הסברים מתחלפת
     #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
@@ -1039,7 +1061,6 @@ def main_halach_clock():
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
     tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
-
 
     # איזור קווי הפרדה. חייב להיות אחרי הכל כדי שיעלה מעל הכל
     tft.line(0, 45, 320, 45, s3lcd.YELLOW) # קו הפרדה
