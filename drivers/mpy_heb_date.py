@@ -354,7 +354,9 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     return heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name
 
 def get_today_heb_date_string():
-    year, month, day, rtc_week_day, hour, minute, second, micro_second = utime.localtime(utime.time())
+    # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
+    tm = utime.localtime(utime.time())
+    year, month, day, rtc_week_day, hour, minute, second, micro_second = (tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0)
     heb_date_string, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
     return heb_date_string
     
