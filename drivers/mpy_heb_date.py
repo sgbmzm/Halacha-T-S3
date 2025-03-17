@@ -17,9 +17,9 @@ def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
 def get_lite_holiday_name(heb_day_int, heb_month_int, is_leap_year):
     """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג הקל כלומר מדרבנן אם מדובר בחג קל, אחרת מחזירה None """
     LITE_HOLIDAYS = {
-        (25, 3 if is_leap_year else 9): "ראשון של חנוכה"
-        (14, 7 if is_leap_year else 6): "פורים דפרזים"
-        (15, 7 if is_leap_year else 6): "פורים דמוקפין"
+        (25, 3 if is_leap_year else 9): "ראשון של חנוכה",
+        (14, 7 if is_leap_year else 6): "פורים דפרזים",
+        (15, 7 if is_leap_year else 6): "פורים דמוקפין",
         (9, 12 if is_leap_year else 11): "תשעה באב"    
     }
 
