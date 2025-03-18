@@ -1,6 +1,5 @@
-from machine import Pin, PWM
-'''
-# בינתיים בוטל כל החלק של מסך מתחיל... בגלל שגורם משום מה למסך לא להיכבות בזמן שמחובר לחשמל ולא מוגדר מצב שינה עמוקה
+from machine import Pin
+
 # למסך
 import halacha_clock.tft_config as tft_config
 import s3lcd
@@ -11,18 +10,17 @@ def reverse(string):
     return "".join(reversed(string))
 
 # הצגת הודעה על המסך כמה שיותר מהר כדי שיראו שהכל בסדר
+# אסור להגדיר כאן את בהירות המסך כי זה גרם לכך שכשמחובר לחשמל המסך לא נכבה בלחיצה על כיבוי כשלא היה מצב שינה עמוקה
 try:
     tft = tft_config.config(rotation=3) # כיוון סיבוב התצוגה שאני רוצה
     tft.init() # כך חייבים לעשות
-    BACKLIGHT = PWM(Pin(38, Pin.OUT), freq=1000)
-    BACKLIGHT.duty(255)
     tft.fill(0) # מחיקת המסך
     tft.write(FontHeb25,f'{reverse("מתחיל...")}',200,20)
     #tft.line(0, 45, 320, 45, s3lcd.YELLOW)
     tft.show()
 finally:
     tft_config.deinit(tft)
-'''
+
 # הגדרת הכפתורים הפיזיים במכשיר
 boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
 button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
