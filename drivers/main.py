@@ -1,5 +1,6 @@
 from machine import Pin, PWM
-
+'''
+# בינתיים בוטל כל החלק של מסך מתחיל... בגלל שגורם משום מה למסך לא להיכבות בזמן שמחובר לחשמל ולא מוגדר מצב שינה עמוקה
 # למסך
 import halacha_clock.tft_config as tft_config
 import s3lcd
@@ -21,7 +22,7 @@ try:
     tft.show()
 finally:
     tft_config.deinit(tft)
-
+'''
 # הגדרת הכפתורים הפיזיים במכשיר
 boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
 button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
