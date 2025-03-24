@@ -1345,8 +1345,8 @@ def main_main():
     # אם מוגדר שינה אוטומטית והמתח מראה שמחובר לסוללה ולא לחשמל ועברו ... דקות מאז הפעלת התוכנה אז מגדירים את המשתנה power_state לכבות את המכשיר
     # המשתנה automatic_deepsleep מוגדר בפונקציית main_halach_clock שבשבת וחג לא מכבים את המסך או נכנסים למצב שינה
     # בתחילה מגדירים משתנה מאוד חשוב שקובע אחרי כמה זמן ניכנס למצב שינה או למסך כבוי באופן אוטומטי
-    # כרגע מוגדר ל 120 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
-    seconsd_to_start_auto_deepsleep = 121 
+    # כרגע מוגדר ל 130 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
+    seconsd_to_start_auto_deepsleep = 130 
     if automatic_deepsleep and current_voltage < max_battery_v and (current_time - start_time_for_automatic_deepsleep) >= seconsd_to_start_auto_deepsleep:
         power_state = False
          
