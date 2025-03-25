@@ -188,7 +188,7 @@ def move_heb_date(start_day, start_month, year_length, days_to_move):
 
 # פונקצייה שמחזירה את התאריך הגרגוריאני שבו יחול פסח בשנה נתונה או את התאריך הגרגוריאני שבו יחול ראש השנה שאחרי פסח של השנה הנתונה
 # כברירת מחדל מקבל קלט של שנה לועזית אך יכול לקבל קלט של שנה עברית במספרים אם מגדירים זאת בקריאה לפונקצייה
-def get_geus_rosh_hasha_greg(year, from_heb_year = False):
+def get_geus_rosh_hashana_greg(year, from_heb_year = False):
 
     if from_heb_year:
         A = year
@@ -332,20 +332,20 @@ def get_days_from_rosh_hashana(greg_year, greg_month, greg_day):
     current_timestamp = utime.mktime((current_year, current_month, current_day, 0, 0, 0, 0, 0))
     
     # חישוב התאריך הלועזי של ראש השנה והגדרת חותמת זמן שלו
-    rosh_hashana_greg = get_geus_rosh_hasha_greg(current_year)
+    rosh_hashana_greg = get_geus_rosh_hashana_greg(current_year)
     rosh_hashana_year, rosh_hashana_month, rosh_hashana_day = rosh_hashana_greg
     rosh_hashana_timestamp = utime.mktime((rosh_hashana_year, rosh_hashana_month, rosh_hashana_day, 0, 0, 0, 0, 0))
     
     # אם ראש השנה גדול מהיום הנוכחי כלומר שהוא עוד לא היה סימן שאנחנו צריכים את ראש השנה הקודם ולכן החישוב הוא על השנה הקודמת
     if rosh_hashana_timestamp > current_timestamp:
         # חישוב התאריך הלועזי של ראש השנה והגדרת חותמת זמן שלו
-        rosh_hashana_greg = get_geus_rosh_hasha_greg(current_year-1) # הקטנת שנה
+        rosh_hashana_greg = get_geus_rosh_hashana_greg(current_year-1) # הקטנת שנה
         rosh_hashana_year, rosh_hashana_month, rosh_hashana_day = rosh_hashana_greg
         rosh_hashana_timestamp = utime.mktime((rosh_hashana_year, rosh_hashana_month, rosh_hashana_day, 0, 0, 0, 0, 0))
 
       
     # חישוב ראש השנה הבא אחרי ראש השנה המבוקש
-    next_rosh_hashana_greg = get_geus_rosh_hasha_greg(rosh_hashana_year+1) # חישוב ראש השנה הבא לאחר ראש השנה המבוקש 
+    next_rosh_hashana_greg = get_geus_rosh_hashana_greg(rosh_hashana_year+1) # חישוב ראש השנה הבא לאחר ראש השנה המבוקש 
     next_rosh_hashana_year, next_rosh_hashana_month, next_rosh_hashana_day = next_rosh_hashana_greg
     next_rosh_hashana_timestamp = utime.mktime((next_rosh_hashana_year, next_rosh_hashana_month, next_rosh_hashana_day, 0, 0, 0, 0, 0))
 
