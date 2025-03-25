@@ -86,7 +86,7 @@ def update_software():
 # הדפסה למסך
 tft.fill(0) # מחיקת המסך
 tft.write(FontHeb25,f'{reverse("בתהליך עדכון התוכנה...")}',20,15)
-tft.write(FontHeb20,f'{reverse("המתן בסבלנות להודעה נוספת")}',10,35)
+tft.write(FontHeb20,f'{reverse("המתן בסבלנות להודעה נוספת")}',10,40)
 tft.show() # כדי להציג את הנתונים על המסך
 DDD = update_software()
 tft.write(FontHeb20,f'{reverse(DDD)}',0,75)
