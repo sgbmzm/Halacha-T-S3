@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "25/03/2025:05"
+VERSION = "25/03/2025:07"
 
 ######################################################################################################################
 
@@ -724,8 +724,8 @@ esberim = [
         [reverse("052-7661249 - sgbmzm@gmail.com  "), ""],
         ["כל הזכויות שמורות - להלן הסברים", ""],
         ["בתקלה: יש ללחוץ על לחצן האיפוס", ""],
-        ["אחוזי הסוללה: בשורת הכותרת", ""],
-        ["כשמחובר לחשמל מופיע: %#", ""],
+        ["אחוז הסוללה )בערך(: בשורת הכותרת", ""],
+        ["כשמחובר לחשמל מופיע: %**", ""],
         ["אור אדום דולק בחור: הסוללה נטענת", ""],
         ["לחצן תחתון: הדלקה וכיבוי", ""],
         ["לחצן עליון: ביצוע פעולות כדלהלן", ""],
@@ -974,7 +974,7 @@ def main_halach_clock():
     # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
     global voltage
     #voltage_string = f"{round(voltage,1)}v"
-    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"#%"
+    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"**%"
     
     greg_date_string = f'{day:02d}/{month:02d}/{year:04d}{"!" if time_source in [3,4] else ""}' 
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
@@ -1160,13 +1160,13 @@ def main_bme280():
     # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
     global voltage
     #voltage_string = f"{round(voltage,1)}v"
-    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"#%"
+    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"**%"
     
     tft.fill(0)
 
     t = localtime()
     time_string = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:{:02d}".format(t[2], t[1], t[0], t[3], t[4], t[5]) # להוסיף יום בשבוע
-    tft.write(FontHeb25,f'  {voltage_string}    {time_string}', 0, 0)
+    tft.write(FontHeb25,f'    {time_string}     {voltage_string}', 0, 0)
     tft.write(FontHeb20,f'                    {reverse("לחות")}                   {reverse("טמפ.")}',0,30)
     tft.write(FontHeb40,f'{temp:.1f}c', 180, 20, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb40,f' {humidity:.1f}%', 0, 20, s3lcd.GREEN, s3lcd.BLACK)
