@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "25/03/2025:04"
+VERSION = "25/03/2025:05"
 
 ######################################################################################################################
 
@@ -705,7 +705,7 @@ except Exception as e:
 def get_battery_percentage(voltage, min_voltage=3.6, max_voltage=4.4):
     """ מחשב אחוז סוללה על פי המתח הנמדד ומונע ערכים מחוץ לטווח 0%-100% """
     percentage = ((voltage - min_voltage) / (max_voltage - min_voltage)) * 100
-    return round(max(0, min(100, percentage)), 1)
+    return round(max(0, min(100, percentage)))
 
 
 # חישוב מה מרכז המסך
