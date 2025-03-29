@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "27/03/2025"
+VERSION = "30/03/2025"
 
 ######################################################################################################################
 
@@ -30,7 +30,7 @@ from halacha_clock.moonphase_sgb import MoonPhase  # ספריית חישובי �
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import mpy_heb_date # לחישוב תאריך עברי מתאריך לועזי. ספרייה שלי
 from halacha_clock import bme280 # לחיישן טמפרטורה ולחות
-from time import localtime # משמש הרבה בפונקציות של BME280
+
 
 # פונטים
 import halacha_clock.miriam20 as FontHeb20
@@ -199,12 +199,13 @@ def get_normal_weekday(rtc_weekday):
 # פונקצייה שמחזירה נכון או לא נכון האם כרגע נוהג שעון קיץ בישראל
 # היא מתבססת על מה השעה והתאריך ברגע זה בשעון הפנימי של המיקרו בקר ולכן חייבים להגדיר אותו לפני שקוראים לפונקצייה זו
 # שעון הקיץ מופעל בישראל בין יום שישי שלפני יום ראשון האחרון של חודש מרץ בשעה 02:00, לבין יום ראשון האחרון של חודש אוקטובר בשעה 02:00.
+# השעה 2 בלילה של שינוי השעון הם בשעון ישראל ואילו שעון הבקר מוגדר לאיזור זמן גריניץ לכן הקדמתי בשעתיים לשעה 0 שעון גריניץ
 def is_now_israel_DST():
     # קבלת השנה הנוכחית
     current_year = utime.localtime()[0]
     
     # חישוב יום ראשון האחרון של מרץ
-    march_last_sunday = utime.mktime((current_year, 3, 31, 2, 0, 0, 0, 0, 0))
+    march_last_sunday = utime.mktime((current_year, 3, 31, 0, 0, 0, 0, 0, 0))
     while utime.localtime(march_last_sunday)[6] != get_rtc_weekday(1):
         march_last_sunday -= 86400  # מורידים יום
     
@@ -213,7 +214,7 @@ def is_now_israel_DST():
     last_friday_march = march_last_sunday - 2 * 86400  # מורידים 2 ימים (שישי)
 
     # חישוב יום ראשון האחרון של אוקטובר
-    october_last_sunday = utime.mktime((current_year, 10, 31, 2, 0, 0, 0, 0, 0))
+    october_last_sunday = utime.mktime((current_year, 10, 31, 0, 0, 0, 0, 0, 0))
     while utime.localtime(october_last_sunday)[6] != get_rtc_weekday(1): 
         october_last_sunday -= 86400  # מורידים יום
     
@@ -253,7 +254,7 @@ def decimal_hours_to_seconds(decimal_hours):
 # פונקצייה שאינה בשימוש כלל כרגע וגם לא עדכנית אבל נשארת כאן לתזכורת איך עושים זאת
 # היא מיועדת למקרים שבהם רוצים לעדכן את השעה ב DS3231 מהמחשב או באופן ידני במקום מהרשת והיא לא מומלצת כלל כי עדיף לעדכן מהרשת
 # בכל מקרה אסור לקרוא לה אם לא מחוברים למחשב או אם השעה במחשב לא מכוונת
-# שימו לב!!! בעדכון באמצעות פונקצייה זו צריך להקפיד שאיזור הזמן יהיה איזור הזמן של ישראל אחרת יהיו שגיאות בחישובי הזמן בתוכנה
+# שימו לב!!! בעדכון באמצעות פונקצייה זו צריך להקפיד שאיזור הזמן יהיה איזור הזמן של גריניץ אחרת יהיו שגיאות בחישובי הזמן בתוכנה
 # זה מסתמך על הגדרות משתנים גלובליים: rtc_system וגם rtc_ds3231
 def update_ds3231_from_computer_or_manually(from_computer=False, manually=False):
     
@@ -290,7 +291,7 @@ def update_ds3231_from_computer_or_manually(from_computer=False, manually=False)
 '''
 ######################################################################################################3
 
-# מונקצייה שמנסה להתחבר לווייפי ולקבל את הזמן הנוכחי ב UTC-0
+# מונקצייה שמנסה להתחבר לווייפי ולקבל את הזמן הנוכחי בגריניץ כלומר ב UTC-0
 def get_ntp_time():
     """עדכון השעה משרת NTP עם ניסיון לרשתות נוספות במקרה של כישלון, כולל כיבוי Wi-Fi בסוף."""
     wlan = network.WLAN(network.STA_IF)
@@ -338,13 +339,10 @@ def get_ntp_time():
                     ntptime.timeout = 1
                     # קבלת הזמן מהשרת בפורמט של חותמת זמן. הזמן המתקבל הוא בשעון גריניץ כלומר UTC-0
                     ntp_timestamp_utc = ntptime.time()
-                    # המרת הזמן לשעון בישראל
-                    israel_offset_seconds = get_generic_utc_offset(35, dst=is_now_israel_DST(), in_seconds = True) # ישראל זה קו אורך 35
-                    current_israel_timestamp = ntp_timestamp_utc + israel_offset_seconds # כי ישראל היא אחרי יוטיסי
-                    # המרת הזמן הנוכחי בישראל מחותמת זמן לפורמט של תאריך ושעה
-                    ntp_localtime = utime.localtime(current_israel_timestamp)
+                    # המרת הזמן הנוכחי בגריניץ מחותמת זמן לפורמט של תאריך ושעה
+                    ntp_localtime = utime.localtime(ntp_timestamp_utc)
                     
-                    print("השעה התקבלה בהצלחה!", ntp_localtime)
+                    print("השעה (בגריניץ) התקבלה בהצלחה!", ntp_localtime)
                     return ntp_localtime  # מחזיר את הזמן ומכבה את ה-WiFi (נכבה תמיד ב-finally)
                 
                 except Exception as ntp_error:
@@ -370,6 +368,7 @@ time_source = None
 
 # פונקצייה שמטפלת בכל הגדרת הזמן, ועדכונו אם צריך, גם בשעון הפנימי וגם בשעון החיצוני
 # היא באה במקום הפונקצייה שהייתה קיימת פעם ונקראה בשם: sync_rtc_with_ds3231()
+# חשוב מאוד! הפונקצייה מגדירה בשעון החיצוני והפנימי את הזמן בשעון גריניץ כלומר איזור זמן UTC-0
 def check_and_set_time():
     
     # הצהרה על משתנה גלובלי שקובע האם יש לעדכן את הזמן מהרשת
@@ -714,12 +713,15 @@ def get_battery_percentage(voltage, min_voltage=3.6, max_voltage=4.4):
     return round(max(0, min(100, percentage)))
 
 
-# חישוב מה מרכז המסך
+# חישוב מה מרכז המסך כדי למרכז את הטקסט במרכז המסך
+# עדיין יש בעיות קטנות שאולי נגרמות מכך שיש אותיות צרות יותר מ MAX_WIDTH אבל אין מה לעשות כרגע
+# בינתיים זה הכי טוב שהגעתי אליו
 def center(text, font):
-    """
-    Centers the given text on the display.
-    """
-    return tft.width() // 2 - len(text) // 2 * (9 if font==FontHeb20 else 12 if font==FontHeb25 else 10) #font.MAX_WIDTH
+    # הגדרת הפיקסל שבמרכז המסך
+    tft_pixel_center = 160 # tft.width() // 2
+    # הגדרת הפיקסל שבמרכז הטקסט
+    text_pixel_center = len(text) // 2 * font.MAX_WIDTH // 2 # כלומר הרוחב בפיקסלים של חצי מהטקסט
+    return tft_pixel_center - text_pixel_center # זה אומר כמה ימינה ממרכז המסך צריך להתחיל את ההדפסה כדי שמרכז ההדפסה יהיה במרכז המסך
 
 
 #  ההסברים מורכבים משני חלקים כל אחד: הסבר וערך. ההסבר עובר בסוף רוורס ולכן אם יש בו מספרים חייבים לעשות להם רוורס כאן כדי שהרוורס הסופי יישר אותם 
@@ -794,16 +796,15 @@ esberim = [
 # פונקצייה שמחזירה את השעה במיקום שבו נמצאים כרגע כחותמת זמן
 def get_current_location_timestamp():
     # הגדרות מאוד חשובות על איזה זמן יתבצעו החישובים
-    # כרגע השעון של הבקר הוא שעון ישראל ואני ממיר את זה ליוטיסי ומשם לזמן מקומי והכל בחותמות זמן באמצעות פונקצייה שהוגדרה לעיל
-    # בעתיד אולי שעון המכונה יהיה יוטיסי ואז יצטרכו לשנות בהתאם.
-    # גם צריך לטפל ב אר.טי.סי. החיצוני שאולי הוא יהיה באיזור זמן יוטיסי
+    # בתחילת הקוד גרמנו שהשעון החיצוני וגם הפנימי מעודכנים בשעה בגריניץ כלומר באיזור זמן UTC-0 . כעת צריך להמיר לשעון מקומי במיקום הנוכחי
     rtc_system_timestamp =  time.time() # או: utime.mktime(utime.localtime())
-    is_location_dst = True if is_now_israel_DST() else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
-    israel_offset_seconds = get_generic_utc_offset(35, dst=is_location_dst, in_seconds = True) # ישראל זה קו אורך 35
-    current_utc_timestamp = rtc_system_timestamp - israel_offset_seconds # כי ישראל היא אחרי יוטיסי
-    location_offset_hours = get_generic_utc_offset(location["long"], dst=is_location_dst)
-    location_offset_seconds = get_generic_utc_offset(location["long"], dst=is_location_dst, in_seconds = True)
-    current_location_timestamp = current_utc_timestamp + location_offset_seconds
+    current_utc_timestamp =  rtc_system_timestamp # כי בתחילת הקוד גרמנו שהשעון החיצוני יעדכן את השעון הפנימי בשעה באיזור זמן UTC-0
+    # בדיקה האם המיקום הנוכחי הוא משווה 00 או הקוטב הצפוני אפס כי שם אני לא רוצה שיהיה שעון קיץ
+    is_location_mashve_or_kotev = location["long"] == 0.0 and location["lat"] == 0.0 or location["long"] == 0.0 and location["lat"] == 90.0
+    is_location_dst = True if is_now_israel_DST() and not is_location_mashve_or_kotev else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
+    location_offset_hours = get_generic_utc_offset(location["long"], dst=is_location_dst) # חישוב הפרש הזמן מגריניץ עבור המיקום הנוכחי בשעות
+    location_offset_seconds = get_generic_utc_offset(location["long"], dst=is_location_dst, in_seconds = True) # חישוב הפרש הזמן בשניות
+    current_location_timestamp = current_utc_timestamp + location_offset_seconds # חותמת הזמן המקומית היא UTC-0 בתוספת הפרש השניות המקומי
     # עכשיו הגענו לנתון הכי חשוב שהוא חותמת הזמן המקומית הנוכחית
     return current_location_timestamp, location_offset_hours, location_offset_seconds
 
@@ -966,7 +967,7 @@ def main_halach_clock():
     # חישוב תוספות לשבת כלומר מיום שישי חצי שעה לפני השקיעה עד השקיעה וכן בשבת מהשקיעה ועד צאת שבת שבלוחות
     normal_weekday = get_normal_weekday(rtc_week_day) # חישוב היום בשבוע של התאריך הלועזי בדווקא
     half_hour_before_sunset_until_sunset =  sunset and current_timestamp >= (sunset - 1800) and current_timestamp < sunset # 1800 שניות זה חצי שעה לפני השקיעה
-    sunset_until_motsaei_shabat_luchot = sunset and current_timestamp > sunset and s_alt < -8.5
+    sunset_until_motsaei_shabat_luchot = sunset and current_timestamp > sunset and s_alt > -8.5
     is_tosafot_leshabat = (normal_weekday == 6 and half_hour_before_sunset_until_sunset) or (normal_weekday == 7 and sunset_until_motsaei_shabat_luchot)
     
     
@@ -1058,10 +1059,27 @@ def save_default_location(index):
         print("שגיאה בשמירת המיקום:", e)
 
 
+# פונקצייה שמחזירה את מיקום ברירת המחדל להיות המיקום הנוכחי
+def go_to_default_location():
+    # הצהרה על משתנים גלובליים
+    global location, location_index
+    # מחזיר את המיקום הנוכחי להיות מיקום ברירת מחדל
+    default_index = read_default_location()
+    location = locations[default_index] if 0 <= default_index < len(locations) else locations[0]
+    # מאפס את המיקום שאוחזים בו בדפדוף ברשימת המיקומים כך שהדפדוף הבא יתחיל מהתחלה ולא מהמיקום האינדקסי של מיקום ברירת המחדל
+    location_index = 0
 
 ############################################################################################################################################################
 #################################################################   איזור הטיפול במד טמפרטורה לחות ולחץ ברומטרי  ###########################################
 ############################################################################################################################################################
+
+# פונקצייה לקבלת הזמן המשמש בכל החלק בקוד שמטפל במזג האוויר
+# מדובר בזמן מקומי במיקום ברירת המחדל המוגדר
+def get_location_localtime():
+    # מקבל את השעה המקומית במיקום ברירת המחדל כחותמת זמן
+    current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
+    # מחזיר את הזמן המקומי כפורמט זמן רגיל
+    return utime.localtime(current_location_timestamp)
 
 
 # Variables for minimum and maximum tracking
@@ -1072,15 +1090,15 @@ max_humidity = float('-inf')
 min_pressure = float('inf')
 max_pressure = float('-inf')
 
-min_time_temp = localtime()
-max_time_temp = localtime()
-min_time_humidity = localtime()
-max_time_humidity = localtime()
-min_time_pressure = localtime()
-max_time_pressure = localtime()
+min_time_temp = get_location_localtime()
+max_time_temp = get_location_localtime()
+min_time_humidity = get_location_localtime()
+max_time_humidity = get_location_localtime()
+min_time_pressure = get_location_localtime()
+max_time_pressure = get_location_localtime()
 
 # Variable for current day tracking
-current_date = localtime()[0:3]
+current_date = get_location_localtime()[0:3]
 
 # משתנה לשליטה על איזה נתונים יוצגו במין/מקס במסך של מד הטמפרטורה בכל שנייה
 current_screen_bme280 = 0.0  # 0: Temperature, 1: Humidity, 2: Pressure
@@ -1100,24 +1118,24 @@ def update_min_max(temp, humidity, pressure):
 
     if temp < min_temp:
         min_temp = temp
-        min_time_temp = localtime()
+        min_time_temp = get_location_localtime()
     if temp > max_temp:
         max_temp = temp
-        max_time_temp = localtime()
+        max_time_temp = get_location_localtime()
 
     if humidity < min_humidity:
         min_humidity = humidity
-        min_time_humidity = localtime()
+        min_time_humidity = get_location_localtime()
     if humidity > max_humidity:
         max_humidity = humidity
-        max_time_humidity = localtime()
+        max_time_humidity = get_location_localtime()
 
     if pressure < min_pressure:
         min_pressure = pressure
-        min_time_pressure = localtime()
+        min_time_pressure = get_location_localtime()
     if pressure > max_pressure:
         max_pressure = pressure
-        max_time_pressure = localtime()
+        max_time_pressure = get_location_localtime()
 
 def reset_min_max_if_new_day():
     """Resets minimum and maximum values if the day changes."""
@@ -1125,7 +1143,7 @@ def reset_min_max_if_new_day():
     global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
     global current_date
 
-    today = localtime()[0:3]
+    today = get_location_localtime()[0:3]
     if today != current_date:
         current_date = today
         min_temp = float('inf')
@@ -1134,12 +1152,12 @@ def reset_min_max_if_new_day():
         max_humidity = float('-inf')
         min_pressure = float('inf')
         max_pressure = float('-inf')
-        min_time_temp = localtime()
-        max_time_temp = localtime()
-        min_time_humidity = localtime()
-        max_time_humidity = localtime()
-        min_time_pressure = localtime()
-        max_time_pressure = localtime()
+        min_time_temp = get_location_localtime()
+        max_time_temp = get_location_localtime()
+        min_time_humidity = get_location_localtime()
+        max_time_humidity = get_location_localtime()
+        min_time_pressure = get_location_localtime()
+        max_time_pressure = get_location_localtime()
 
 def format_time(time_tuple):
     """Formats time tuple to HH:MM."""
@@ -1170,7 +1188,7 @@ def main_bme280():
     
     tft.fill(0)
 
-    t = localtime()
+    t = get_location_localtime()
     time_string = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:{:02d}".format(t[2], t[1], t[0], t[3], t[4], t[5]) # להוסיף יום בשבוע
     tft.write(FontHeb25,f'    {time_string}     {voltage_string}', 0, 0)
     tft.write(FontHeb20,f'                    {reverse("לחות")}                   {reverse("טמפ.")}',0,30)
@@ -1397,6 +1415,11 @@ def main_main():
                 # אני מניח ש BME280 מחובר ל original_i2c כדי לחסוך בבדיקות, אבל אפשר לבדוק עם check_i2c_device(bme280_bitname) כמו בתחילת הקוד
                 bme = bme280.BME280(i2c=original_i2c) 
                 is_bme280_connected = True
+                ################################################################################
+                # החזרת מיקום ברירת המחדל להיות המיקום הנוכחי
+                # אם לא עושים את זה הזמן יהיה במיקום שמוגדר בשעון ההלכה ברגע חיבור חיישן הטמפרטורה
+                go_to_default_location()
+                #################################################################################
             except:
                 bme = False
                 is_bme280_connected = False    
@@ -1459,4 +1482,3 @@ def main_main():
 # לולאת רענון חשובה ביותר שחוזרת על עצמה כל הזמן והיא זו שמפעילה את הפונקצייה הראשית כל שנייה מחדש
 while True:
     main_main()
-
