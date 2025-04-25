@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "24/4/2025"
+VERSION = "25/4/2025"
 
 ######################################################################################################################
 
@@ -656,6 +656,7 @@ locations = [
     {'heb_name': 'וילנא-ליטא', 'lat': 54.672298, 'long': 25.2697, 'altitude': 112.0, 'utc_offset': '', 'name': 'Vilnius LT'} ,
     {'heb_name': "ז'שוב-פולין", 'lat': 50.0332, 'long': 21.985848, 'altitude': 209.0, 'utc_offset': '', 'name': 'Rzeszow PL'} ,
     {'heb_name': 'סטוקהולם-שבדיה', 'lat': 59.33, 'long': 18.06, 'altitude': 28.0, 'utc_offset': '', 'name': 'Stockholm SE'} ,
+    {'heb_name': 'טרולהטן-שבדיה', 'lat': 58.28, 'long': 12.28, 'altitude': 28.0, 'utc_offset': '', 'name': 'Trollhattan SE'} ,
     {'heb_name': "פראג-צ'כיה", 'lat': 50.0878114, 'long': 14.4204598, 'altitude': 191.103485, 'utc_offset': '', 'name': 'Prague CZ'} ,
     {'heb_name': 'פריז-צרפת', 'lat': 48.8566667, 'long': 2.3509871, 'altitude': 0.0, 'utc_offset': '', 'name': 'Paris FR'} ,
     {'heb_name': 'מוסקווה-רוסיה', 'lat': 55.755786, 'long': 37.617633, 'altitude': 151.189835, 'utc_offset': '', 'name': 'Moscow RU'} ,
