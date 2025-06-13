@@ -1,10 +1,103 @@
-from halacha_clock import gematria_pyluach
-import utime
+import time
+
+
+###################################################################
+       # גמטריה מספריית פיילוח לצורך שנה עברית באותיות
+###################################################################
+
+# https://github.com/simlist/pyluach/blob/master/src/pyluach/gematria.py
+
+_GEMATRIOS = {
+    1: 'א',
+    2: 'ב',
+    3: 'ג',
+    4: 'ד',
+    5: 'ה',
+    6: 'ו',
+    7: 'ז',
+    8: 'ח',
+    9: 'ט',
+    10: 'י',
+    20: 'כ',
+    30: 'ל',
+    40: 'מ',
+    50: 'נ',
+    60: 'ס',
+    70: 'ע',
+    80: 'פ',
+    90: 'צ',
+    100: 'ק',
+    200: 'ר',
+    300: 'ש',
+    400: 'ת'
+}
+
+
+def _stringify_gematria(letters):
+    """Insert geresh or gershayim symbols into gematria."""
+    length = len(letters)
+    if length > 1:
+        return f'{letters[:-1]}״{letters[-1]}'
+    if length == 1:
+        return f'{letters}׳'
+    return ''
+
+
+def _get_letters(num):
+    """Convert numbers under 1,000 into raw letters."""
+    ones = num % 10
+    tens = num % 100 - ones
+    hundreds = num % 1000 - tens - ones
+    four_hundreds = ''.join(['ת' for i in range(hundreds // 400)])
+    ones = _GEMATRIOS.get(ones, '')
+    tens = _GEMATRIOS.get(tens, '')
+    hundreds = _GEMATRIOS.get(hundreds % 400, '')
+    letters = f'{four_hundreds}{hundreds}{tens}{ones}'
+    return letters.replace('יה', 'טו').replace('יו', 'טז')
+
+
+def _num_to_str(num, thousands=False, withgershayim=True):
+    """Return gematria string for number.
+
+    Parameters
+    ----------
+    num : int
+        The number to get the Hebrew letter representation
+    thousands : bool, optional
+        True if the hebrew returned should include a letter for the
+        thousands place ie. 'ה׳' for five thousand.
+
+    Returns
+    -------
+    str
+        The Hebrew representation of the number.
+    """
+    letters = _get_letters(num)
+    if withgershayim:
+        letters = _stringify_gematria(letters)
+    if thousands:
+        thousand = _get_letters(num // 1000)
+        if withgershayim:
+            thousand = ''.join([thousand, '׳'])
+        letters = ''.join([thousand, letters])
+    return letters
+
+
+###################################################################
+                    # עד כאן גמטריה מספריית פיילוח
+###################################################################
+
+# פונקצייה עבור mktime שמחזירה טאפל באורך 9 מקומות שזה מתאים לפייתון רגיל או מיקרופייתון
+# המיקום התשיעי אומר אם זה שעון קיץ או חורף לפי אפס או אחד. ומינוס אחד אומר שהמחשב יחליט לבד אם זה שעון קיץ או חורף
+def get_mktime_date_only(year, month, day):
+    return time.mktime((year, month, day, 0, 0, 0, 0, 0, -1))
+    
 
 # מוציא את מספר היום בשבוע הנורמלי לפי סדר מתוך שעון המכשיר שמוגדר RTC
 def get_normal_weekday(rtc_weekday):
     weekday_dict = {6:1,0:2,1:3,2:4,3:5,4:6,5:7}
     return weekday_dict.get(rtc_weekday)
+
 
 def get_holiday_name(heb_day_int, heb_month_int, is_leap_year):
     """ מקבלת יום, חודש והאם השנה מעוברת, ומחזירה את שם החג אם מדובר בחג, אחרת מחזירה False """
@@ -329,25 +422,25 @@ def get_days_from_rosh_hashana(greg_year, greg_month, greg_day):
     current_day = greg_day
     
     # הגדרת חותמת זמן של היום הנוכחי
-    current_timestamp = utime.mktime((current_year, current_month, current_day, 0, 0, 0, 0, 0))
+    current_timestamp = get_mktime_date_only(current_year, current_month, current_day)
     
     # חישוב התאריך הלועזי של ראש השנה והגדרת חותמת זמן שלו
     rosh_hashana_greg = get_geus_rosh_hashana_greg(current_year)
     rosh_hashana_year, rosh_hashana_month, rosh_hashana_day = rosh_hashana_greg
-    rosh_hashana_timestamp = utime.mktime((rosh_hashana_year, rosh_hashana_month, rosh_hashana_day, 0, 0, 0, 0, 0))
+    rosh_hashana_timestamp = get_mktime_date_only(rosh_hashana_year, rosh_hashana_month, rosh_hashana_day)
     
     # אם ראש השנה גדול מהיום הנוכחי כלומר שהוא עוד לא היה סימן שאנחנו צריכים את ראש השנה הקודם ולכן החישוב הוא על השנה הקודמת
     if rosh_hashana_timestamp > current_timestamp:
         # חישוב התאריך הלועזי של ראש השנה והגדרת חותמת זמן שלו
         rosh_hashana_greg = get_geus_rosh_hashana_greg(current_year-1) # הקטנת שנה
         rosh_hashana_year, rosh_hashana_month, rosh_hashana_day = rosh_hashana_greg
-        rosh_hashana_timestamp = utime.mktime((rosh_hashana_year, rosh_hashana_month, rosh_hashana_day, 0, 0, 0, 0, 0))
+        rosh_hashana_timestamp = get_mktime_date_only(rosh_hashana_year, rosh_hashana_month, rosh_hashana_day)
 
       
     # חישוב ראש השנה הבא אחרי ראש השנה המבוקש
     next_rosh_hashana_greg = get_geus_rosh_hashana_greg(rosh_hashana_year+1) # חישוב ראש השנה הבא לאחר ראש השנה המבוקש 
     next_rosh_hashana_year, next_rosh_hashana_month, next_rosh_hashana_day = next_rosh_hashana_greg
-    next_rosh_hashana_timestamp = utime.mktime((next_rosh_hashana_year, next_rosh_hashana_month, next_rosh_hashana_day, 0, 0, 0, 0, 0))
+    next_rosh_hashana_timestamp = get_mktime_date_only(next_rosh_hashana_year, next_rosh_hashana_month, next_rosh_hashana_day)
 
     # חישוב אורך השנה בימים
     length_heb_year_in_seconds = next_rosh_hashana_timestamp - rosh_hashana_timestamp
@@ -376,7 +469,7 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     # חישוב שם החודש והיום בעברית
     heb_day_string = heb_month_day_names(heb_day_int)
     heb_month_string = heb_month_names(heb_month_int, is_leap_year)
-    heb_year_string = gematria_pyluach._num_to_str(heb_year_int, thousands=True, withgershayim=False)   
+    heb_year_string = _num_to_str(heb_year_int, thousands=True, withgershayim=False)   
     heb_date_string = f'{heb_day_string} {heb_month_string} {heb_year_string}'
     
     tuple_heb_date = (heb_day_int, heb_month_int, heb_year_int)
@@ -389,21 +482,21 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     
     return heb_date_string, tuple_heb_date, holiday_name, lite_holiday_name, is_rosh_chodesh
     
-
-def get_today_heb_date_string():
+# מחזיר תאריך עברי של היום הנוכחי כולל אפשרות ליום בשבוע
+def get_today_heb_date_string(heb_week_day = False):
     # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
-    tm = utime.localtime(utime.time())
+    tm = time.localtime(time.time())
     year, month, day, rtc_week_day, hour, minute, second, micro_second = (tm[0], tm[1], tm[2], tm[6], tm[3], tm[4], tm[5], 0)
-    #normal_weekday = get_normal_weekday(rtc_week_day)
-    #hebrew_weekday = heb_weekday_names(normal_weekday)
+    if heb_week_day:
+        normal_weekday = get_normal_weekday(rtc_week_day)
+        hebrew_weekday = heb_weekday_names(normal_weekday)
     heb_date_string, _, _, _, _, = get_heb_date_and_holiday_from_greg_date(year, month, day)
-    return heb_date_string
+    return f'{hebrew_weekday}, {heb_date_string}' if heb_week_day else heb_date_string
     
 def get_if_greg_is_heb_holiday(greg_year, greg_month, greg_day):
     _, _, holiday_name, lite_holiday_name, is_rosh_chodesh = get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day)
     return holiday_name
 
 def get_is_today_heb_holiday():
-    year, month, day, rtc_week_day, hour, minute, second, micro_second = utime.localtime(utime.time())
+    year, month, day, rtc_week_day, hour, minute, second, micro_second = time.localtime(time.time())
     return get_if_greg_is_heb_holiday(year, month, day)
-
