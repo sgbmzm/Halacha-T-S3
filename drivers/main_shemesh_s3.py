@@ -1020,7 +1020,7 @@ def main_halach_clock():
     #tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
     
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
-    tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
+    tft.write(FontHeb25,f' {greg_date_string}                 {utc_offset_string}',0,147)
     tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
 
     # איזור קווי הפרדה. חייב להיות אחרי הכל כדי שיעלה מעל הכל
