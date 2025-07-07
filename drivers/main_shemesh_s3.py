@@ -1372,8 +1372,8 @@ def main_main():
     # אם מוגדר שינה אוטומטית והמתח מראה שמחובר לסוללה ולא לחשמל ועברו ... דקות מאז הפעלת התוכנה אז מגדירים את המשתנה power_state לכבות את המכשיר
     # המשתנה automatic_deepsleep מוגדר בפונקציית main_halach_clock שבשבת וחג לא מכבים את המסך או נכנסים למצב שינה
     # בתחילה מגדירים משתנה מאוד חשוב שקובע אחרי כמה זמן ניכנס למצב שינה או למסך כבוי באופן אוטומטי
-    # כרגע מוגדר ל 150 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
-    seconsd_to_start_auto_deepsleep = 150 
+    # כרגע מוגדר ל 200 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
+    seconsd_to_start_auto_deepsleep = 200 
     if automatic_deepsleep and current_voltage < max_battery_v and (current_time - start_time_for_automatic_deepsleep) >= seconsd_to_start_auto_deepsleep:
         power_state = False
                  
@@ -1428,7 +1428,7 @@ def main_main():
         else:
             # הפעלת הפונקצייה הראשית והשהייה קטנה לפני שחוזרים עליה שוב
             main_halach_clock()
-            current_screen_halach_clock = (current_screen_halach_clock + 0.39) % len(esberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
+            current_screen_halach_clock = (current_screen_halach_clock + 0.3) % len(esberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
             time.sleep(0.825)  # רענון כל שנייה אבל צריך לכוון את זה לפי כמה כבד הקוד עד שהתצוגה בפועל תתעדכן כל שנייה ולא יותר ולא בפחות
             gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
             
