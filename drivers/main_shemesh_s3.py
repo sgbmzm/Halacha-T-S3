@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "7/7/2025"
+VERSION = "15/7/2025"
 
 ######################################################################################################################
 
@@ -850,6 +850,27 @@ def main_halach_clock():
       
     # שמירת כל הנתונים על היום הנוכחי כי כולם נוצרים ביחד בעת הגדרת "riset" או בעת שמשנים לו יום
     sunrise, sunset, mga_sunrise, mga_sunset = riset.sunrise(1), riset.sunset(1), riset.tstart(1), riset.tend(1)
+
+    # אם מדובר אחרי 12 בלילה ולפני הזריחה לפי אחת משתי השיטות ההלכתיות (ויודעים את זה לפי ששעת הזריחה מאוחרת מהרגע הנוכחי) השעה הזמנית מתחילה בשקיעה של אתמול
+    # מגדרים את יום האתמול ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום האתמול    
+    # אם בעתיד ירצו שעון ערבי מהשקיעה הקודמת יהיו חייבים להפעיל את החישוב הזה בקביעות ולא רק אחרי 12 בלילה ולפני הזריחה
+    if (sunrise and current_timestamp < sunrise) or (mga_sunrise and current_timestamp < mga_sunrise):
+        riset.set_day(-1)
+        yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1) if mga_sunrise else None
+        tomorrow_sunrise, mga_tomorrow_sunrise = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
+        
+    # אם מדובר אחרי השקיעה לפי אחת השיטות ולפני השעה 12 בלילה השעה הזמנית מסתיימת בזריחה של מחר
+    # מגדירים את יום המחר ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום המחר
+    elif (sunrise and sunset and current_timestamp > sunrise and current_timestamp >= sunset) or (mga_sunrise and mga_sunset and current_timestamp > mga_sunrise and current_timestamp >= mga_sunset):
+        riset.set_day(1)
+        tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1) if mga_sunrise else None 
+        yesterday_sunset, mga_yesterday_sunset = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
+   
+    # הדפסות לניסיון כשיש בעיות
+    #print("mga_sunrise",time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(mga_sunrise)))
+    #print("mga_sunset", time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(mga_sunset)))
+    
+    ############# חישוב גובה ואזימוט של השמש והירח ברגע הנוכחי ###########
        
     # הגדרת הזמן הנוכחי המקומי מחותמת זמן לזמן רגיל
     tm = utime.localtime(current_timestamp)
@@ -868,24 +889,10 @@ def main_halach_clock():
     m_alt = m_alt - 0.45
     
       
-    # כל החישובים נעשים רק אם יש זריחה ושקיעה כי אולי במיקום הזה אין בכלל זריחה ושקיעה ביום זה
-    if sunrise and sunset:
-
-        # אם מדובר אחרי 12 בלילה ולפני הזריחה לפי אחת משתי השיטות ההלכתיות (ויודעים את זה לפי ששעת הזריחה מאוחרת מהרגע הנוכחי) השעה הזמנית מתחילה בשקיעה של אתמול
-        # מגדרים את יום האתמול ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום האתמול    
-    
-        if (current_timestamp < sunrise) or (mga_sunrise and current_timestamp < mga_sunrise):
-            riset.set_day(-1)
-            yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1) if mga_sunrise else None
-            tomorrow_sunrise, mga_tomorrow_sunrise = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
-            
-        # אם מדובר אחרי השקיעה לפי אחת השיטות ולפני השעה 12 בלילה השעה הזמנית מסתיימת בזריחה של מחר
-        # מגדירים את יום המחר ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום המחר
-        elif (current_timestamp > sunrise and current_timestamp >= sunset) or (mga_sunrise and mga_sunset and current_timestamp > mga_sunrise and current_timestamp >= mga_sunset):
-            riset.set_day(1)
-            tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1) if mga_sunrise else None 
-            yesterday_sunset, mga_yesterday_sunset = None, None # לא חייבים את זה אבל זה מוסיף לביטחות שלא יתבצעו חישובים על נתונים לא נכונים
-        
+   ################## חישוב השעה הזמנית הנוכחית גרא ומגא  ##################
+   
+    # כל החישובים נעשים רק אם יש זריחה ושקיעה ביממה זו במיקום זה והזריחה היא לפני השקיעה. כי אולי במיקום הזה אין בכלל זריחה ושקיעה ביום זה
+    if sunrise and sunset and sunrise < sunset:   
     
         # חישוב מה הם הזריחה והשקיעה הקובעים את השעון של שעה זמנית באמצעות פונקצייה שהוגדרה למעלה    
         sunrise_timestamp, sunset_timestamp = get_sunrise_sunset_timestamps(current_timestamp, is_gra = True)
@@ -897,12 +904,12 @@ def main_halach_clock():
     else:
         
         temporal_time = reverse("שגיאה  ")
-        minutes_in_temporal_hour = ""
+        minutes_in_temporal_hour = "0.0"
         
     
-    
-    # רק אם השמש מגיעה לגובה זה כי אולי במיקום הזה היא לא מגיעה כרגע לגובה זה
-    if mga_sunrise and mga_sunset:
+    # כל החישובים נעשים רק אם יש זריחה ושקיעה של מגא ביממה זו במיקום זה והזריחה היא לפני השקיעה.
+    # כי אולי במיקום הזה אין בכלל זריחה ושקיעה ביום זה כלומר שהשמש לא יורדת אל מתחת האופק בצורה מסודרת ביממה זו
+    if mga_sunrise and mga_sunset and mga_sunrise < mga_sunset:
 
         # חישוב מחדש עבור שיטת מגן אברהם    
         # חישוב מה הם הזריחה והשקיעה הקובעים את השעון של שעה זמנית באמצעות פונקצייה שהוגדרה למעלה    
@@ -914,11 +921,11 @@ def main_halach_clock():
     else:
         
         mga_temporal_time = reverse("שגיאה  ")
-        minutes_in_mga_temporal_hour = ""
+        minutes_in_mga_temporal_hour = "0.0"
 
 
-    ###########################################################
-    # חישוב שלב הירח הנוכחי
+    ##################### חישוב שלב הירח הנוכחי ##########################
+    
     MoonPhase.tim = round(current_timestamp) ############### אם לא מגדירים את זה אז הזמן הוא לפי הזמן הפנימי של הבקר
     mp = MoonPhase(lto=location_offset_hours)  # כולל הגדרת ההפרש מגריניץ במיקום הנוכחי
     phase = mp.phase()
@@ -995,10 +1002,10 @@ def main_halach_clock():
     # איזור שעה זמנית
     tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,46)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20,f'{minutes_in_temporal_hour}',283,62, s3lcd.CYAN, s3lcd.BLACK)
+    tft.write(FontHeb20,f'{minutes_in_temporal_hour}',283,62, s3lcd.CYAN, s3lcd.BLACK) # אם עושים דקות ושניות אז המיקום 277 ולא 283 אבל אין מקום
     if MGA_deg:
         tft.write(FontHeb25,f' {mga_temporal_time}', 0, 50, s3lcd.GREEN, s3lcd.BLACK)
-        tft.write(FontHeb20,f'{minutes_in_mga_temporal_hour}',102,62, s3lcd.CYAN, s3lcd.BLACK)
+        tft.write(FontHeb20,f'{minutes_in_mga_temporal_hour}',102,62, s3lcd.CYAN, s3lcd.BLACK) # אם עושים דקות ושניות אז המיקום 96 ולא 102
   
     # איזור גובה אזימוט שמש וירח ושלב ירח
     tft.write(FontHeb20,f'                 {reverse("ירח")}                         {reverse("שמש")}',0,82)
