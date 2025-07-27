@@ -470,7 +470,7 @@ def get_heb_date_and_holiday_from_greg_date(greg_year, greg_month, greg_day):
     heb_day_string = heb_month_day_names(heb_day_int)
     heb_month_string = heb_month_names(heb_month_int, is_leap_year)
     heb_year_string = _num_to_str(heb_year_int, thousands=True, withgershayim=False)   
-    heb_date_string = f'{heb_day_string} {heb_month_string} {heb_year_string}'
+    heb_date_string = f"{heb_day_string}' {heb_month_string} {heb_year_string}"
     
     tuple_heb_date = (heb_day_int, heb_month_int, heb_year_int)
     
