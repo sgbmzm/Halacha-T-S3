@@ -22,6 +22,13 @@ solder 5 pins to it for an RTC clock called: **DS3231 MINI**
 G+NC+16+21+17 (next to each other)
 (DS3231 MINI can be purchased separately on AliExpress and includes a backup battery for the clock)
 
+Attention! To prevent the DS3231 backup battery from draining quickly, it is very important to remove the 2 PULL_UP resistors located on the back of the main board and responsible for pins 16 and 17 according to the instructions here. They must be carefully removed with a soldering iron.
+
+https://github.com/Xinyuan-LilyGO/T-Display-S3/issues/313
+
+<img width="1177" height="866" alt="image" src="https://github.com/user-attachments/assets/cf2f5ecf-5222-4b42-aa03-7411681b49ff" />
+
+
 
 ## INSTALL
 
