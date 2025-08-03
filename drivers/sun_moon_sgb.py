@@ -446,29 +446,30 @@ class RiSet:
         t = mjd / 36525.0
         tl = self.lstt(t, hour) + self.long  # זמן כוכבי מקומי במעלות
         
-        # זה מחזיר גיאוצנטרי
-        xg, yg, zg, distance_km = func(t) ################# הוספתי את distance_km
+        # זה מחזיר את מיקום הגוף השמיימי מנקודת מבט גיאוצנטרית כלומר ממרכז כדור הארץ
+        xg, yg, zg, distance_km = func(t) 
         
-        # זה ממיר לטופוצנטרי לצורך חישוב עתידי מדוייק יותר של גובה ואזימוט
-        x, y, z = topocentric(xg, yg, zg, distance_km, self.lat, self.long, tl)
+        # זה ממיר לטופוצנטרי לצורך חישוב עתידי מדוייק יותר של גובה
+        xt, yt, zt = topocentric(xg, yg, zg, distance_km, self.lat, self.long, tl)
 
-        sin_alt = self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
+        # חישוב גובה מהאופק על מיקום טופוצנטרי של הצופה
+        sin_alt = self.sglat * zt + self.cglat * (xt * cos(radians(tl)) + yt * sin(radians(tl)))
         alt = degrees(asin(sin_alt))  # גובה השמש במעלות
         
-        # חישוב נטייה במעלות
-        rho = sqrt(x * x + y * y)  # היטל של הווקטור על מישור XY
-        dec = degrees(atan2(z, rho))  # חישוב נטייה במעלות
+        # חישוב נטייה כלומר דקלינציה וזה דווקא על מיקום גיאוצנטרי ממרכז כדור הארץ
+        rho = sqrt(xg * xg + yg * yg)  # היטל של הווקטור על מישור XY
+        dec = degrees(atan2(zg, rho))  # חישוב נטייה במעלות
         
-        # חישוב עלייה ישרה (RA)
+        # חישוב עלייה ישרה (RA) וזה דווקא גיאוצנטרי ממרכז כדור הארץ
         # בתאריך 14.3.25 בשעה 21:11:00 utc+2 במודיעין עילית קיבלתי שגיאת חלוקה באפס
         # השגיאה מגיעה מ x + rho ולהלן הפתרון שצ'אט גיפיטי הציע
-        ra_base = x + rho
+        ra_base = xg + rho
         epsilon = 1e-9  # ערך קטן מאוד שקרוב מאוד ל 0.00000 אבל הוא לא אפס מוחלט וזאת כדי למנוע שגיאת חלוקה באפס 
         if abs(ra_base) < epsilon:  
             ra_base = epsilon  # לשמור על דיוק גבוה אבל למנוע בעיה
-        ra = ((48.0 / (2 * pi)) * atan(y / ra_base)) % 24 # עלייה ישרה בשעות כשבר עשרוני
+        ra = ((48.0 / (2 * pi)) * atan(yg / ra_base)) % 24 # עלייה ישרה בשעות כשבר עשרוני
 
-        # חישוב האזימוט (Az)
+        # חישוב האזימוט (Az) מתוך העלייה הישרה
         hourangle = radians(tl) - radians(ra * 15)  # זמן הכוכבים המקומי פחות העלייה הישרה של הכוכב זה זוית השעה שלו (ra * 15 מחזיר למעלות)
         hourangle_hours = (degrees(hourangle) % 360)  / 15.0 # זווית השעה בשעות כשבר עשרוני
         
@@ -479,9 +480,9 @@ class RiSet:
         sl = self.sglat # ==sin(radians(lat))
         cl = self.cglat # ==cos(radians(lat))
 
-        x = -ch * cd * sl + sd * cl
-        y = -sh * cd
-        az = degrees(atan2(y, x)) % 360  # אזימוט במעלות
+        x_az = -ch * cd * sl + sd * cl
+        y_az = -sh * cd
+        az = degrees(atan2(y_az, x_az)) % 360  # אזימוט במעלות
         
         return alt, az, ra, dec
 
