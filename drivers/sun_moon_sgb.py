@@ -108,6 +108,7 @@ def minisun(t):
     # takes t centuries since J2000.0. Claimed good to 1 arcmin
     coseps = 0.9174805004
     sineps = 0.397780757938
+    e = 0.0167  # אקסצנטריות מסלול הארץ סביב השמש ###############
 
     m = 2 * pi * frac(0.993133 + 99.997361 * t)
     dl = 6893.0 * sin(m) + 72.0 * sin(2 * m)
@@ -119,7 +120,15 @@ def minisun(t):
     # rho = sqrt(1 - z * z)
     # dec = (360.0 / 2 * pi) * atan(z / rho)
     # ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24
-    return x, y, z
+    
+    ############
+    #distance_km = 149597870.7  # יחידה אסטרונומית אחת (AU) מרחק ממוצע בלבד
+    # חישוב מרחק מהשמש לפי חוק קפלר
+    distance_AU = (1 - e**2) / (1 + e * cos(m))
+    distance_km = distance_AU * 149597870.7
+    ############
+    
+    return x, y, z, distance_km ################## המרחק זו תוספת שלי
 
 
 def minimoon(t):
@@ -177,8 +186,54 @@ def minimoon(t):
     # rho = sqrt(1.0 - z * z)
     # dec = (360.0 / 2 * pi) * atan(z / rho)
     # ra = ((48.0 / (2 * pi)) * atan(y / (x + rho))) % 24
-    return x, y, z
+    
+    
+    #########################
+    # מרחק גאוצנטרי של הירח (בערך בקילומטרים)
+    # הערכה פשוטה לפי הפרש באורך בין ירח ופריהליון
+    # אפשרות מדויקת יותר: הוקטור עצמו *יחסי*, נחשב Δ לפי נורמה
+    #distance_km = 385000.56 + dl  # קירוב, אפשר לשפר
+    distance_km = sqrt(x**2 + y**2 + z**2) * 384400  # כפל ביחידה ממוצעת בק"מ
+    #######################
+    
+    return x, y, z, distance_km  ################## המרחק זו תוספת שלי
 
+
+###########################################################
+
+# פונקצייה מאוד חשובה מאת צ'אט גיפיטי להמרת קואורטינדות של גרם שמיימי מגאוצנטרי לטופוצנטרי כלומר ממיקום הצופה
+def topocentric(x_geocentric, y_geocentric, z_geocentric, distance_km, lat_deg, lon_deg, lst_deg):
+    
+    # קבועים
+    Re_km = 6378.137  # רדיוס כדור הארץ באקווטור בק"מ
+
+    # המר לחישובים
+    φ = radians(lat_deg)
+    H = radians(lst_deg)  # זמן סידריאלי מקומי – זווית השעה
+
+    # מיקום הצופה (יחידות רדיוס ארצי)
+    x_obs = cos(φ) * cos(H)
+    y_obs = cos(φ) * sin(H)
+    z_obs = sin(φ)
+
+    # המרחק לגוף השמימי ביחידות רדיוס ארצי
+    rho = distance_km / Re_km
+
+    # הפרש וקטור בין צופה לגוף השמימי
+    xt = x_geocentric * rho - x_obs
+    yt = y_geocentric * rho - y_obs
+    zt = z_geocentric * rho - z_obs
+
+    # נורמליזציה לווקטור יחידה
+    r = sqrt(xt**2 + yt**2 + zt**2)
+    
+    x_topocentric = xt / r
+    y_topocentric = yt / r
+    z_topocentric = zt / r
+    
+    return x_topocentric, y_topocentric, z_topocentric
+
+#############################################################
 
 class RiSet:
     verbose = True
@@ -370,7 +425,7 @@ class RiSet:
         mjd = (self.mjd - 51544.5) + hour / 24.0
         # mjd = self.mjd + hour / 24.0
         t = mjd / 36525.0
-        x, y, z = func(t)
+        x, y, z, distance_km = func(t) ################# הוספתי את distance_km
         tl = self.lstt(t, hour) + self.long  # Local mean sidereal time adjusted for logitude
         return self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
     
@@ -389,9 +444,14 @@ class RiSet:
         func = minisun if sun else minimoon
         mjd = (self.mjd - 51544.5) + hour / 24.0
         t = mjd / 36525.0
-        x, y, z = func(t)  # קואורדינטות קרטזיות של השמש או הירח
+        tl = self.lstt(t, hour) + self.long  # זמן כוכבי מקומי במעלות
+        
+        # זה מחזיר גיאוצנטרי
+        xg, yg, zg, distance_km = func(t) ################# הוספתי את distance_km
+        
+        # זה ממיר לטופוצנטרי לצורך חישוב עתידי מדוייק יותר של גובה ואזימוט
+        x, y, z = topocentric(xg, yg, zg, distance_km, self.lat, self.long, tl)
 
-        tl = self.lstt(t, hour) + self.long  # זמן כוכבי מקומי
         sin_alt = self.sglat * z + self.cglat * (x * cos(radians(tl)) + y * sin(radians(tl)))
         alt = degrees(asin(sin_alt))  # גובה השמש במעלות
         
@@ -468,4 +528,5 @@ class RiSet:
             if t_rise is not None and t_set is not None:
                 break  # All done
         return to_int(t_rise), to_int(t_set)  # Convert to int preserving None values
+
 
