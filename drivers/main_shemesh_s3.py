@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "4/8/2025"
+VERSION = "13/10/2025"
 
 ######################################################################################################################
 
@@ -954,12 +954,18 @@ def main_halach_clock():
     
     # חישוב האם שבת. שבת מוגדרת מהשקיעה של סוף יום שישי עד השקיעה של סוף שבת
     is_shabat = heb_weekday == 7
+
+    # פונקציית עזר פנימית לבדיקה האם נמצאים מהשקיעה ועד מוצאי היום העברי
+    # כברירת מחדל מוצאי היום העברי זה כשהשמש מינוס 4.6 מעלות תחת האופק
+    # מוצאי שבת בלוחות הרגילים זה כשהשמש מינוס 8.5 מעלות תחת האופק
+    def is_sunset_until_motsaei(degrees_for_motsaei = -4.6):
+        return sunset and current_timestamp > sunset and s_alt > degrees_for_motsaei
     
     # חישוב תוספות לשבת כלומר מיום שישי חצי שעה לפני השקיעה עד השקיעה וכן בשבת מהשקיעה ועד צאת שבת שבלוחות
     normal_weekday = get_normal_weekday(rtc_week_day) # חישוב היום בשבוע של התאריך הלועזי בדווקא
     half_hour_before_sunset_until_sunset =  sunset and current_timestamp >= (sunset - 1800) and current_timestamp < sunset # 1800 שניות זה חצי שעה לפני השקיעה
-    sunset_until_motsaei_shabat_luchot = sunset and current_timestamp > sunset and s_alt > -8.5
-    is_tosafot_leshabat = (normal_weekday == 6 and half_hour_before_sunset_until_sunset) or (normal_weekday == 7 and sunset_until_motsaei_shabat_luchot)
+    is_tosafot_leshabat = (normal_weekday == 6 and half_hour_before_sunset_until_sunset) or (normal_weekday == 7 and is_sunset_until_motsaei(degrees_for_motsaei = -8.5))
+    shabat_before_motsaei_6 = (normal_weekday == 7 and is_sunset_until_motsaei(degrees_for_motsaei= -6))
     
     
     # הגדרת ביטול כיבוי אוטומטי בשבת וחג. וכן מחצי שעה לפני השקיעה בשבת ועד מוצאי שבת שבלוחות
@@ -992,7 +998,7 @@ def main_halach_clock():
     
     # איזור תאריך עברי כולל צבע מתאים לימי חול ולשבתות וחגים
     # צבע הטקסט והרקע של התאריך העברי: ביום חול לבן על שחור ובשבת וחג שחור על צהוב, ובחגים דרבנן כולל תעניות שחור על ציאן
-    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name or is_rosh_chodesh else (s3lcd.WHITE, s3lcd.BLACK)
+    HEB_DATE_FG, HEB_DATE_BG  = (s3lcd.BLACK, s3lcd.YELLOW) if is_shabat or holiday_name or shabat_before_motsaei_6 else (s3lcd.BLACK, s3lcd.CYAN) if lite_holiday_name or is_rosh_chodesh else (s3lcd.WHITE, s3lcd.BLACK)
     tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
    
     # איזור שעה זמנית
