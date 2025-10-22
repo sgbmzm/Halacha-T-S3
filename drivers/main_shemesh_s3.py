@@ -1016,7 +1016,7 @@ def main_halach_clock():
     ##############################################################################
     
     # השקיעה האחרונה שהייתה היא בדרך כלל השקיעה של אתמול. אבל בין השקיעה לשעה 12 בלילה השקיעה האחרונה היא השקיעה של היום
-    last_sunset_timestamp = yesterday_sunset if current_timestamp < sunset else sunset
+    last_sunset_timestamp = yesterday_sunset if sunset and current_timestamp < sunset else sunset
     magrab_time = calculate_magrab_time(current_timestamp, last_sunset_timestamp) if last_sunset_timestamp else reverse("שגיאה  ") # רק אם יש שקיעה אחרונה אפשר לחשב
     #print("magrab_time", magrab_time)
       
