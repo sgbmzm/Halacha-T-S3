@@ -240,9 +240,6 @@ class RiSet:
     # Riset.mtime() returns machine time as an int. The class variable tim is for
     # test purposes only and allows the hardware clock to be overridden
     tim = None
-    ## For sunrise and sunset time search: What is the height of the sun above the horizon at sunrise or sunset.
-    ##The normal default is -0.833 for normal sunrise and sunset
-    sinho_sun_riset = -0.833 ## 
 
     @classmethod
     def mtime(cls):
@@ -253,15 +250,18 @@ class RiSet:
         if time.gmtime(0)[0] == 2000:  # Machine epoch
             t -= 10957 * 86400
         cls.tim = t
-
-    def __init__(self, lat=LAT, long=LONG, lto=0, tl=None, dst=lambda x: x):  # Local defaults
+    
+    # riset_deg: Degrees below the horizon defined as sunrise and sunset. Default is -0.833
+    # tlight_deg: Degrees below the horizon defined as twilight. default is None = not calculated. example: -18, -12, -6 or any value
+    def __init__(self, lat=LAT, long=LONG, lto=0, riset_deg = -0.833, tlight_deg=None, dst=lambda x: x):  # Local defaults ###
         self.sglat = sin(radians(lat))
         self.cglat = cos(radians(lat))
         self.lat = lat ###########
         self.long = long
         self.check_lto(lto)  # -15 < lto < 15
         self.lto = round(lto * 3600)  # Localtime offset in secs
-        self.tlight = sin(radians(tl)) if tl is not None else tl
+        self.sinho_riset = sin(radians(riset_deg)) ###########
+        self.tlight = sin(radians(tlight_deg)) if tlight_deg is not None else tlight_deg #####
         self.dst = dst
         self.mjd = None  # Current integer MJD
         # Times in integer secs from midnight on current day (in machine time adjusted for DST)
@@ -497,9 +497,10 @@ class RiSet:
         t_rise = None  # Rise and set times in secs from midnight
         t_set = None
         if tl:
-            sinho = -self.tlight
+            sinho = self.tlight ###
         else:
-            sinho = sin(radians(RiSet.sinho_sun_riset)) if sun else sin(radians(8 / 60)) ## sinho_sun_riset
+            #sinho = sin(radians(-0.833)) if sun else sin(radians(8 / 60))
+            sinho = self.sinho_riset #######
         # moonrise taken as centre of moon at +8 arcmin
         # sunset upper limb simple refraction
         # The loop finds the sin(alt) for sets of three consecutive
@@ -529,5 +530,6 @@ class RiSet:
             if t_rise is not None and t_set is not None:
                 break  # All done
         return to_int(t_rise), to_int(t_set)  # Convert to int preserving None values
+
 
 
