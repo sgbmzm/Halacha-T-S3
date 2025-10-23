@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "22/10/2025"
+VERSION = "23/10/2025"
 
 ######################################################################################################################
 
@@ -154,6 +154,45 @@ bme = bme280.BME280(i2c=bme280_exit) if is_bme280_connected else False
 
 
 ############################################################################################
+# במיקרופייתון אין פונקציית time.strftime ולכן מחליף כך
+def format_time(time_tuple, with_seconds = True, with_date=False):
+    """המרת tuple של זמן למחרוזת בסגנון HH:MM:SS,  או '%H:%M:%S %d/%m/%Y'"""
+    t = time_tuple
+    return f"{t[3]:02d}:{t[4]:02d}:{t[5]:02d} {t[2]:02d}/{t[1]:02d}/{t[0]}" if with_date else f"{t[3]:02d}:{t[4]:02d}:{t[5]:02d}" if with_seconds else f"{t[3]:02d}:{t[4]:02d}"
+
+# פונקצייה לחישוב זמן מקומי (לפי חצות שנתי ממוצע שהוא בשעה 12), לפי קו האורך הגיאוגרפי האמיתי 
+def localmeantime(utc_time, longitude):
+    offset_seconds = int(240 * longitude)  # 4 דקות לכל מעלה
+    lmt_seconds = utc_time + offset_seconds
+    lmt_tuple = time.gmtime(int(lmt_seconds))   # לא מוסיף הטיה מקומית
+    return lmt_tuple
+
+def calculate_delta_t(year):
+    """
+    Calculate ΔT (seconds) for years 2000-2500 using the polynomial expressions.
+    https://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html
+    """
+    y = float(year)
+    
+    if 2000 <= y < 2005:
+        t = y - 2000
+        dt = 63.86 + 0.3345*t - 0.060374*t**2 + 0.0017275*t**3 + 0.000651814*t**4 + 0.00002373599*t**5
+    elif 2005 <= y < 2050:
+        t = y - 2000
+        dt = 62.92 + 0.32217*t + 0.005589*t**2
+    elif 2050 <= y < 2150:
+        u = (y - 1820)/100
+        dt = -20 + 32*u**2 - 0.5628*(2150 - y)
+    else:  # y >= 2150
+        u = (y - 1820)/100
+        dt = -20 + 32*u**2
+
+    # Small lunar correction (not needed for 1955-2005, but outside this range we apply)
+    if y < 1955 or y > 2005:
+        dt += -0.000012932 * (y - 1955)**2
+
+    return dt
+
 
 # פונקצייה לקבלת הפרש השעות המקומי מגריניץ בלי התחשבות בשעון קיץ
 # יש אפשרות להגדיר טרו או פאלס האם זה שעון קיץ או לא. כברירת מחדל זה לא
@@ -819,7 +858,10 @@ location_index = 0
 
 
 # משתנה לשליטה על איזה נתונים יוצגו בהסברים במסך של שעון ההלכה בכל שנייה
-current_screen_halach_clock = 0.0  # 
+current_screen_halach_clock = 0.0  #
+
+# משתנה לשליטה אלו נתונים יוצגו בשורת הזמנים 
+current_screen_zmanim = 0
 
 ###########################################################
 
@@ -919,12 +961,12 @@ def main_halach_clock():
     # הדפסות לניסיון כשיש בעיות
     print_times = False
     if print_times:
-        print("sunrise",time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(sunrise)))
-        print("sunset", time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(sunset)))
-        print("mga_sunrise",time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(mga_sunrise)))
-        print("mga_sunset", time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(mga_sunset)))
-        print("misheiakir",time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(misheiakir)))
-        print("tset_hacochavim", time.strftime("%H:%M:%S %d/%m/%Y",time.gmtime(tset_hacochavim)))
+        print("sunrise",format_time(time.gmtime(sunrise), with_date=True))
+        print("sunset", format_time(time.gmtime(sunset), with_date=True))
+        print("mga_sunrise",format_time(time.gmtime(mga_sunrise), with_date=True))
+        print("mga_sunset", format_time(time.gmtime(mga_sunset), with_date=True))
+        print("misheiakir",format_time(time.gmtime(misheiakir), with_date=True))
+        print("tset_hacochavim", format_time(time.gmtime(tset_hacochavim), with_date=True))
         print("")
        
    ################## חישוב השעה הזמנית הנוכחית גרא ומגא  ##################
@@ -1015,11 +1057,98 @@ def main_halach_clock():
     automatic_deepsleep = False if is_shabat or is_tosafot_leshabat or holiday_name else True
     ##############################################################################
     
+    # חישוב שעונים נוספים
+    #####################
+    
+    ########### 1. שעון שעות מהשקיעה שנקרא שעון המגרב
     # השקיעה האחרונה שהייתה היא בדרך כלל השקיעה של אתמול. אבל בין השקיעה לשעה 12 בלילה השקיעה האחרונה היא השקיעה של היום
-    last_sunset_timestamp = yesterday_sunset if sunset and current_timestamp < sunset else sunset
+    last_sunset_timestamp = yesterday_sunset if (sunset and current_timestamp < sunset) else sunset
     magrab_time = calculate_magrab_time(current_timestamp, last_sunset_timestamp) if last_sunset_timestamp else reverse("שגיאה  ") # רק אם יש שקיעה אחרונה אפשר לחשב
     #print("magrab_time", magrab_time)
-      
+     
+    ########### 2. שעון מקומי ממוצע
+    utc_timestamp_now = time.time() # זה מחזיר את הזמן הנוכחי בגריניץ כחותמת זמן ולא את הזמן המקומי
+    lmt = localmeantime(utc_timestamp_now, location["long"])
+    lmt_string = format_time(lmt)
+    
+    ######### 3. שעון מקומי אמיתי שבו תמיד בחצות המוקמי האמיתי השעה היא 12:00 בצהריים
+    
+    # פונקצייה שמחשבת את ההפרש בין שעון מקומי אמיתי לשעון מקומי ממוצע.
+    # ההפרש הזה מורכב ממשוואת הזמן יחד עם דלטא טי
+    def calculate_lmt_lst_different():
+        
+        # שלב ראשון חישוב חצות בשעון רגיל.
+        # בינתיים חישבתי חצות בדרך לא הכי מדוייקת באמצעות שעה זמנית 6 כלומר חצי הזמן בין הזריחה המישורית לשקיעה המישורית
+        # הכי מדוייק זה שמש באזימוט 180 או אם אי אפשר אז לפחות אמצע בין זריחה ושקיעה גיאומטריים של 0 מעלות
+        seconds_day_gra = (sunset - sunrise) / 12 if sunrise and sunset else None
+        chatsot_seconsds = sunrise + (seconds_day_gra * 6)
+        
+        # המרת החצות לשעה בגריניץ באותו זמן
+        chatsot_seconsds_gm = chatsot_seconsds-location_offset_seconds
+           
+        # שלב שני חישוב שעת חצות בשעון מקומי ממוצע ובדיקה כמה סוטה מהשעה 12:00 וכך מוצאים את הפרש הזמן
+        # בדיקת שעת חצות בשעון מקומי ממוצע
+        chatsot_lmt = localmeantime(chatsot_seconsds_gm, location["long"])
+        chatsot_lmt_string = format_time(chatsot_lmt)
+        
+        # בונים את הזמן של 12:00 באותו היום 
+        noon_timestamp = time.mktime(chatsot_lmt[:3] + (12, 0, 0) + chatsot_lmt[6:])
+        chatsot_lmt_timestamp = time.mktime(chatsot_lmt)
+                
+        # מחשבים את ההפרש בין השעה 12:00 לבין שעת חצות בשעון מקומי ממוצע. זה ההפרש lmt_lst
+        lmt_lst_different = chatsot_lmt_timestamp - noon_timestamp
+        
+        return lmt_lst_different
+        
+        
+    # הפחתת או הוספת הפרש lmt_lst לשעון המקומי הממוצע כדי לקבל שעון מקומי אמיתי.    
+    lmt_lst_different = calculate_lmt_lst_different()
+    local_solar_time = localmeantime(utc_timestamp_now - lmt_lst_different, location["long"])
+    local_solar_time_string = format_time(local_solar_time)
+
+    ######## 4. השעה הנוכחית בגריניץ
+    gm_time_now = time.gmtime()
+    gm_time_now_string = format_time(gm_time_now)
+    
+    ######### 5. משוואת הזמן
+    delta_t = calculate_delta_t(year)
+    equation_of_time_string = convert_seconds(lmt_lst_different + delta_t) # עדיין צריך לתקן בהדפסה את סימני מינוס ופלוס
+     
+    ############################################################################
+    # איזור הדפסת זמנים בשעון רגיל
+    
+    #חישוב מספר השניות מהזריחה לשקיעה
+    seconds_day_gra = (sunset - sunrise) / 12 if sunrise and sunset else None
+    seconds_day_mga = (mga_sunset - mga_sunrise) / 12 if mga_sunrise and mga_sunset else None
+    
+    def hhh(start_time, seconsd_per_hour, hour):   
+        AAA = start_time + (seconsd_per_hour * hour)
+         # עיגול לדקה הקרובה
+        total_seconds = int(AAA + 30) // 60 * 60 
+        time_value = time.gmtime(total_seconds)
+        return format_time(time_value, with_seconds=False)
+        # אם רוצים בלי עיגול אלא כולל שניות
+        #time_value = time.gmtime(AAA)
+        #return format_time(time_value, with_seconds=False)
+        
+    
+    zmanim = [
+        ["זמנים בשעון רגיל - עיגול לדקה קרובה"],
+        [f"עלות השחר: {reverse(hhh(mga_sunrise, 0, 0))} | משיכיר: {reverse(hhh(misheiakir, 0, 0))}"], 
+        [f"זריחה מישורית: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
+        [f"סוף שמע: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=3))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=3))}"], 
+        [f"סוף תפילה: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=4))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=4))}"],
+        [f"חצות היום - וכנגדו בלילה: {reverse(hhh(sunrise, seconds_day_gra, hour=6))}"],
+        [f"מנחה: גדולה - {reverse(hhh(sunrise, seconds_day_gra, hour=6.5))}, קטנה - {reverse(hhh(sunrise, seconds_day_gra, hour=9.5))}"],
+        [f"פלג המנחה - {reverse(hhh(sunrise, seconds_day_gra, hour=10.75))}"],
+        [f"שקיעה מישורית: {reverse(hhh(sunrise, seconds_day_gra, hour=12))}"],
+        [f"כוכבים: גאונים - {reverse(hhh(tset_hacochavim, 0, 0))}, רת - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=12))}"],
+    ]
+    
+    
+    #############################################################################
+    
+    
     # מכאן והלאה ההדפסות למסך
     
     # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
@@ -1064,16 +1193,21 @@ def main_halach_clock():
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 140, 81, s3lcd.GREEN, s3lcd.BLACK)
     
     # איזור שורת הסברים מתחלפת
-    #tft.write(FontHeb20,f'                 :{reverse("שעון מהשקיעה )אי/מגרב(")}',0,123) #    {riset.sunset(2)} :{reverse("שקיעה")}    
-    #tft.write(FontHeb25,f' {magrab_time}',0,120, s3lcd.GREEN, s3lcd.BLACK) #
     text = reverse(esberim[int(current_screen_halach_clock)][0])  # רוורס של הטקסט העברי
     time_value = esberim[int(current_screen_halach_clock)][1]  # הערך להצגה
     CCC = f"{time_value}  :{text}" if time_value != "" else f"{text}"
-    tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך 
-
-    # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
-    #tft.write(FontHeb25,f' {greg_date_string}                  {utc_offset_string}',0,147)
-    #tft.write(FontHeb30,f'{time_string}', 133, 145, s3lcd.GREEN, s3lcd.BLACK)
+    #tft.write(FontHeb20, f"{CCC}" ,center(CCC, FontHeb20) , 123)  # כתיבה למסך 
+    
+    # איזור שורת זמנים מתחלפת
+    global current_screen_zmanim
+    SSS = reverse(zmanim[int(current_screen_zmanim)][0])
+    #tft.write(FontHeb20, f"{SSS}" ,center(SSS, FontHeb20) , 123)  # כתיבה למסך 
+    current_screen_zmanim = (current_screen_zmanim + 0.15) % len(zmanim)
+    
+    ### אם רוצים הדפסה של clocks. הרווחים הם בכוונה לצורך מירכוז בשעון ההלכה הפיזי
+    clocks = f"           {gm_time_now_string}  {lmt_string}  {local_solar_time_string}  {magrab_time}"
+    tft.write(FontHeb20, f"{clocks}" ,center(clocks, FontHeb20) , 123)  # כתיבה למסך
+    
     
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                 {utc_offset_string}',0,147)
@@ -1201,7 +1335,7 @@ def reset_min_max_if_new_day():
         min_time_pressure = get_location_localtime()
         max_time_pressure = get_location_localtime()
 
-def format_time(time_tuple):
+def format_time_bme(time_tuple):
     """Formats time tuple to HH:MM."""
     return '{:02}:{:02}'.format(time_tuple[3], time_tuple[4])
 
@@ -1244,16 +1378,16 @@ def main_bme280():
     screen = int(current_screen_bme280)
 
     if screen == 0:  # Temperature
-        tft.write(FontHeb25,f'{format_time(min_time_temp)} {reverse("בשעה")} {min_temp:.1f}c {reverse("מינ טמפ")}', 20, 125)
-        tft.write(FontHeb25,f'{format_time(max_time_temp)} {reverse("בשעה")} {max_temp:.1f}c    {reverse("מקס")}', 20, 145)
+        tft.write(FontHeb25,f'{format_time_bme(min_time_temp)} {reverse("בשעה")} {min_temp:.1f}c {reverse("מינ טמפ")}', 20, 125)
+        tft.write(FontHeb25,f'{format_time_bme(max_time_temp)} {reverse("בשעה")} {max_temp:.1f}c    {reverse("מקס")}', 20, 145)
 
     elif screen == 1:  # Humidity
-        tft.write(FontHeb25,f'{format_time(min_time_humidity)} {reverse("בשעה")} {min_humidity:.1f}% {reverse("מינ לחות")}', 10, 125)
-        tft.write(FontHeb25,f'{format_time(max_time_humidity)} {reverse("בשעה")} {max_humidity:.1f}%    {reverse("מקס")}', 10, 145)
+        tft.write(FontHeb25,f'{format_time_bme(min_time_humidity)} {reverse("בשעה")} {min_humidity:.1f}% {reverse("מינ לחות")}', 10, 125)
+        tft.write(FontHeb25,f'{format_time_bme(max_time_humidity)} {reverse("בשעה")} {max_humidity:.1f}%    {reverse("מקס")}', 10, 145)
     
     elif screen == 2:  # Pressure
-        tft.write(FontHeb25,f'{format_time(min_time_pressure)} {reverse("בשעה")} {min_pressure:.1f}hPa {reverse("מינ לחץ")}', 0, 125)
-        tft.write(FontHeb25,f'{format_time(max_time_pressure)} {reverse("בשעה")} {max_pressure:.1f}hPa    {reverse("מקס")}', 0, 145)
+        tft.write(FontHeb25,f'{format_time_bme(min_time_pressure)} {reverse("בשעה")} {min_pressure:.1f}hPa {reverse("מינ לחץ")}', 0, 125)
+        tft.write(FontHeb25,f'{format_time_bme(max_time_pressure)} {reverse("בשעה")} {max_pressure:.1f}hPa    {reverse("מקס")}', 0, 145)
         
     tft.show()
 
@@ -1524,5 +1658,7 @@ def main_main():
 # לולאת רענון חשובה ביותר שחוזרת על עצמה כל הזמן והיא זו שמפעילה את הפונקצייה הראשית כל שנייה מחדש
 while True:
     main_main()
+
+
 
 
