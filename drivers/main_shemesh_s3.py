@@ -1315,7 +1315,7 @@ def go_to_default_location():
 # מדובר בזמן מקומי במיקום ברירת המחדל המוגדר
 def get_location_localtime():
     # מקבל את השעה המקומית במיקום ברירת המחדל כחותמת זמן
-    current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
+    current_utc_timestamp, current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
     # מחזיר את הזמן המקומי כפורמט זמן רגיל
     return utime.localtime(current_location_timestamp)
 
