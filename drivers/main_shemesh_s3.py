@@ -1177,21 +1177,14 @@ def main_halach_clock():
     
     ##################################################################3
     def hhh(start_time, seconsd_per_hour, hour, round_minute = True):
-        
+        # כשאין זריחה או שקיעה אי אפשר לחשב שעות זמניות
         if start_time == None:
             return "שגיאה"
-        
-        AAA = start_time + (seconsd_per_hour * hour)
-        
-        if round_minute:
-            # עיגול לדקה הקרובה
-            total_seconds = int(AAA + 30) // 60 * 60 
-            time_value = time.gmtime(total_seconds)
-            return time.strftime("%H:%M", time_value)
-        else:
-            # אם רוצים בלי עיגול אלא כולל שניות
-            time_value = time.gmtime(AAA)
-            return time.strftime("%H:%M:%S", time_value)
+        AAA = start_time + (seconsd_per_hour * hour)      
+        # עיגול לדקה הקרובה אם רוצים
+        total_seconds = int(AAA + 30) // 60 * 60 if round_minute else AAA
+        time_value = time.gmtime(total_seconds)
+        return format_time(time_value, with_seconds=False)
         ##################################################
     
     zmanim = [
@@ -1720,8 +1713,6 @@ def main_main():
 # לולאת רענון חשובה ביותר שחוזרת על עצמה כל הזמן והיא זו שמפעילה את הפונקצייה הראשית כל שנייה מחדש
 while True:
     main_main()
-
-
 
 
 
