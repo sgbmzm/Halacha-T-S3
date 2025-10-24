@@ -1184,7 +1184,7 @@ def main_halach_clock():
         # עיגול לדקה הקרובה אם רוצים
         total_seconds = int(AAA + 30) // 60 * 60 if round_minute else AAA
         time_value = time.gmtime(total_seconds)
-        return format_time(time_value, with_seconds=False)
+        return format_time(time_value, with_seconds=False if round_minute else True)
         ##################################################
     
     zmanim = [
