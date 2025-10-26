@@ -829,10 +829,11 @@ current_screen_zmanim = 0
 
 ###########################################################
 
-# שלושה משתנים מאוד חשובים ששומרים את המיקום הקודם והתאריך הקודם ואובייקט ריסט הקודם שהיו מוגדרים
+# ארבעה משתנים מאוד חשובים ששומרים את המיקום הקודם והתאריך הקודם והפרש מגריניץ הקודם ואובייקט ריסט הקודם שהיו מוגדרים
 # זה כדי שנתוני הזריחות והשקיעות יחושבו שוב רק אם השתנה תאריך או מקום
 last_location = None
 last_location_date = None
+last_location_offset_hours = None
 last_location_riset = None
 
 degs_for_rise_set = -0.833 # מה גובה השמש בשעת זריחה ושקיעה. קובע לשעון שעה זמנית גרא ולהדפסת הזמנים
@@ -844,7 +845,7 @@ hesberim_zmanim_clocks = "hesberim" # or "zmanim", or "clocks"
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
 def main_halach_clock():
                  
-    global location, last_location, last_location_date, last_location_riset
+    global location, last_location, last_location_date, last_location_offset_hours, last_location_riset
     # הצהרה על משתנים גלובליים ששומרים את הזמנים הדרושים
     global sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise
     global tset_hacochavim, misheiakir
@@ -863,10 +864,10 @@ def main_halach_clock():
     # חישוב מה השעה הנוכחית בשבר עשרוני עבור חישובי גובה ואזימוט בהמשך הפונקצייה
     current_hour = (hour + (minute / 60) + (second / 3600)) - location_offset_hours
      
-    # במקרה שהתאריך השתנה או המיקום השתנה יש לחשב מחדש את הזריחות והשקיעות והכל ולהקים אובייקט ריסט שמחשב הכל
+    # במקרה שהתאריך השתנה או המיקום השתנה או שהשתנה שעון קיץ, יש לחשב מחדש את הזריחות והשקיעות והכל ולהקים אובייקט ריסט שמחשב הכל
     # בהפעלה ראשונה של התוכנה זה תמיד נכנס ללולאה הזו
-    if location != last_location or current_location_date != last_location_date:
-        
+    if location != last_location or current_location_date != last_location_date or location_offset_hours != last_location_offset_hours:
+         
         #print("location != last_location or current_location_date != last_location_date")
       
         # ריקון כל המשתנים כדי שלא ישתמשו בנתונים לא נכונים
@@ -895,9 +896,10 @@ def main_halach_clock():
         sunrise, sunset, mga_sunrise, mga_sunset = riset.sunrise(1), riset.sunset(1), riset.tstart(1), riset.tend(1)
             
         ####################################
-        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולריסט המוגדר על היום הנוכחי
+        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
         last_location = location
         last_location_date = current_location_date
+        last_location_offset_hours = location_offset_hours
         last_location_riset = riset
         ##########################################
         
@@ -1720,5 +1722,6 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
+
 
 
