@@ -1406,6 +1406,11 @@ def menu_settings_loop(only_key=None):
         {"title": "בחר שורה להצגה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks"], "suffix": ""},
     ]
     
+    modes_hebrew = {
+        "hesberim": reverse("הסברים ומידע"),
+        "zmanim": reverse("זמנים"),
+        "clocks": reverse("שעונים"),
+    }
     
     if only_key is not None:
         menu_items = [item for item in menu_items if item["key"] == only_key]
@@ -1423,15 +1428,28 @@ def menu_settings_loop(only_key=None):
 
     total = len(menu_items)
     for stage, item in enumerate(menu_items, start=1):
+        last_activity = time.time()  # זמן התחלה של המעקב
         while True:
+            
+            # בדיקה אם עברו 60 שניות בלי פעילות
+            if time.time() - last_activity > 60:
+                print("לא נעשתה פעולה במשך דקה — יוצאים מהתפריט.")
+                tft.fill(0)
+                tft.write(FontHeb25, reverse("לא נעשתה פעולה במשך דקה"), 10, 60)
+                tft.write(FontHeb25, reverse("יוצאים מהתפריט..."), 40, 100)
+                tft.show()
+                time.sleep(2)
+                return  # יציאה מהפונקציה לגמרי
+            
             tft.fill(0)
-            tft.write(FontHeb20, reverse(f"שלב {stage} מתוך {total}"), 20, 20)
-            tft.write(FontHeb20, reverse(item["title"]), 20, 60)
+            tft.write(FontHeb20, reverse(f"לחיצה קצרה לשינוי, וארוכה לבחירה"), 20, 2)
+            tft.write(FontHeb20, reverse(f"שלב {stage} מתוך {total}"), 20, 25)
+            tft.write(FontHeb20, reverse(item["title"]), 20, 50)
 
             index = item["index"]
             options = item["options"]
             value = options[index % len(options)]
-            display_val = f"{reverse(str(value))}{item['suffix']}"
+            display_val = f"{reverse(str(modes_hebrew.get(value, value)))}{item['suffix']}"
             tft.write(FontHeb25, reverse(display_val), 100, 100)
             tft.show()
 
@@ -1461,6 +1479,7 @@ def menu_settings_loop(only_key=None):
     tft.show()
     time.sleep(1)
     # איפוס משתנים כדי שיתחילו ההסברים והזמנים מהתחלה אם נבחרו
+    global current_screen_hesberim, current_screen_zmanim
     current_screen_hesberim = 0.0
     current_screen_zmanim = 0
     load_sesings_dict_from_file() # טעינת ההגדרות החדשות
@@ -1470,7 +1489,7 @@ def menu_settings_loop(only_key=None):
 
 # === פונקצייה להצגת ההגדרות הנוכחיות ===
 def show_current_settings():
-    
+    last_activity = time.time()  # זמן התחלה של המעקב
     tft.fill(0)
     tft.write(FontHeb25, reverse("הגדרות נוכחיות:"), 70, 5)
     tft.write(FontHeb20, reverse("לחצו לחיצה ארוכה ליציאה"), 50, 30)
@@ -1485,7 +1504,7 @@ def show_current_settings():
         "default_location_index": "מיקום ברירת מחדל",
     }
 
-    modes = {
+    modes_hebrew = {
         "hesberim": "הסברים",
         "zmanim": "זמנים",
         "clocks": "שעונים",
@@ -1497,16 +1516,16 @@ def show_current_settings():
         if key == "default_location_index":
             value = reverse(locations[value]["heb_name"])
         elif key == "hesberim_mode":
-            value = reverse(modes.get(value, value))
+            value = reverse(modes_hebrew.get(value, value))
         line = f"{reverse(names_hebrew.get(key, key))}:  {value}°"
         tft.write(FontHeb20, line, 20, y_pos)
         y_pos += 20
 
     tft.show()
 
-    # המתנה לחיצה ארוכה כדי לחזור
+    # המתנה ללחיצה ארוכה או שתעבור דקה כדי לצאת מהפונקצייה
     while True:
-        if handle_button_press(boot_button) == "long":
+        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 60:
             return
 
 
@@ -1922,6 +1941,5 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
-
 
 
