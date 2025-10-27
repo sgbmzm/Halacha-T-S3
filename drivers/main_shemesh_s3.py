@@ -1481,8 +1481,20 @@ def menu_settings_loop(only_key=None):
     current_screen_zmanim = 0
     load_sesings_dict_from_file() # טעינת ההגדרות החדשות
     
-    
-
+# פונקצייה להצגת מידע על התוכנה    
+def show_about():
+    last_activity = time.time()
+    tft.fill(0)
+    tft.write(FontHeb25, reverse("אודות שעון ההלכה"), center(reverse("אודות שעון ההלכה"), FontHeb25), 5, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20, reverse(f"גרסה: {reverse(VERSION)}"), center(reverse(f"גרסה: {reverse(VERSION)}"), FontHeb20), 40)
+    tft.write(FontHeb20, reverse(f'{reverse("sgbmzm@gmail.com")}'), center(reverse(f'{reverse("sgbmzm@gmail.com")}'), FontHeb20), 70)
+    tft.write(FontHeb20, reverse("שמחה גרשון בורר - כוכבים וזמנים"), center(reverse("שמחה גרשון בורר - כוכבים וזמנים"), FontHeb20), 90)
+    tft.write(FontHeb20, reverse(f'כל הזכויות שמורות'), center(reverse(f'כל הזכויות שמורות'), FontHeb20), 120)
+    tft.show()
+    # המתנה ללחיצה ארוכה או שתעבור דקה כדי לצאת מהפונקצייה
+    while True:
+        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 60:
+            return
 
 # === פונקצייה להצגת ההגדרות הנוכחיות ===
 def show_current_settings():
@@ -1535,6 +1547,7 @@ def main_menu():
         {"title": "עדכון כל ההגדרות", "action": "update_settings"},
         {"title": "הגדרת שורת ההסברים", "action": "update_hesberim_mode"},
         {"title": "הצגת הגדרות נוכחיות", "action": "show_settings"},
+        {"title": "אודות", "action": "show_about"},
         {"title": "יציאה", "action": "return"},
     ]
 
@@ -1579,6 +1592,8 @@ def main_menu():
                 menu_settings_loop("hesberim_mode")
             elif selected["action"] == "show_settings":
                 show_current_settings()
+            elif selected["action"] == "show_about":
+                show_about()
             elif selected["action"] == "return":
                 return    
     
