@@ -1486,15 +1486,16 @@ def show_about():
     last_activity = time.time()
     tft.fill(0)
     tft.write(FontHeb25, reverse("אודות שעון ההלכה"), center(reverse("אודות שעון ההלכה"), FontHeb25), 5, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20, reverse(f"גרסה"), center(reverse(f"גרסה"), FontHeb20), 35)
-    tft.write(FontHeb20, reverse(f"{reverse(VERSION)}"), center(reverse(f"{reverse(VERSION)}"), FontHeb20), 52, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20, reverse("שמחה גרשון בורר - כוכבים וזמנים"), center(reverse("שמחה גרשון בורר - כוכבים וזמנים"), FontHeb20), 85)
-    tft.write(FontHeb20, reverse(f'{reverse("sgbmzm@gmail.com")}'), center(reverse(f'{reverse("sgbmzm@gmail.com")}'), FontHeb20), 105)
-    tft.write(FontHeb20, reverse(f'כל הזכויות שמורות'), center(reverse(f'כל הזכויות שמורות'), FontHeb20), 140)
+    #tft.write(FontHeb20, reverse("לחצו לחיצה ארוכה ליציאה"), center(reverse("לחצו לחיצה ארוכה ליציאה"), FontHeb20), 25)
+    tft.write(FontHeb20, reverse(f"גרסה"), center(reverse(f"גרסה"), FontHeb20), 40)
+    tft.write(FontHeb20, reverse(f"{reverse(VERSION)}"), center(reverse(f"{reverse(VERSION)}"), FontHeb20), 56, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20, reverse("שמחה גרשון בורר - כוכבים וזמנים"), center(reverse("שמחה גרשון בורר - כוכבים וזמנים"), FontHeb20), 90)
+    tft.write(FontHeb20, reverse(f'{reverse("sgbmzm@gmail.com")}'), center(reverse(f'{reverse("sgbmzm@gmail.com")}'), FontHeb20), 110)
+    tft.write(FontHeb20, reverse(f'כל הזכויות שמורות'), center(reverse(f'כל הזכויות שמורות'), FontHeb20), 150)
     tft.show()
-    # המתנה ללחיצה ארוכה או שתעבור דקה כדי לצאת מהפונקצייה
+    # המתנה ללחיצה ארוכה או שיעברו 10 שניות כדי לצאת מהפונקצייה
     while True:
-        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 60:
+        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 10:
             return
 
 # === פונקצייה להצגת ההגדרות הנוכחיות ===
