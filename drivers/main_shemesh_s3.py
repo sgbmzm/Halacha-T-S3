@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "26/10/2025"
+VERSION = "27/10/2025"
 
 ######################################################################################################################
 
@@ -20,9 +20,8 @@ VERSION = "26/10/2025"
 # https://github.com/peterhinch/micropython-samples/tree/d2929df1b4556e71fcfd7d83afd9cf3ffd98fdac/astronomy
 # לגבי בעיות עם המסך שבס"ד נפתרו ראו כאן
 # https://github.com/Xinyuan-LilyGO/T-Display-S3/issues/300
-# ובורא עולם תכנן שהפין שבחרתי להלחים עבור השעון החיצוני שזה פין 17 נשאר פעיל גם במהלך שינה עמוקה. זה טוב מאוד כי השעון החיצוני צריך למדוד טמפרטורה בשביל להיות מדוייק
 
-import time, math, machine, utime, esp32, network, ntptime, os
+import time, math, machine, utime, esp32, network, ntptime, os, ujson
 from math import sin, cos, tan, radians, degrees
 from machine import I2C, SoftI2C, Pin, ADC, PWM, RTC
 import gc # חשוב נורא לניקוי הזיכרון
@@ -60,8 +59,8 @@ button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכ
 # ברירת המחדל היא שלא
 ntp_update = False
 # אבל אם בשעת הדלקת המכשיר שזו שעת תחילת ריצת הקוד כפתור בוט לחוץ אז כן לעדכן
-if boot_button.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
-    ntp_update = True 
+#if boot_button.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
+#    ntp_update = True 
     
 # משתנה למעקב אחר מצב הכוח כלומר האם המכשיר כבוי או פועל
 # המשמעות של זה מגיעה לידי ביטוי בפונקצייה הראשית: main
@@ -718,67 +717,61 @@ def center(text, font):
 #  ההסברים מורכבים משני חלקים כל אחד: הסבר וערך. ההסבר עובר בסוף רוורס ולכן אם יש בו מספרים חייבים לעשות להם רוורס כאן כדי שהרוורס הסופי יישר אותם 
 hesberim = [
     
-        ["שעון ההלכה גרסה",f"{VERSION}"],
-        [" מאת: שמחה גרשון בורר - כוכבים וזמנים",""],
-        [reverse("sgbmzm@gmail.com"), ""],
-        ["כל הזכויות שמורות - להלן הסברים", ""],
-        ["בתקלה: יש ללחוץ על לחצן האיפוס", ""],
-        ["אחוז הסוללה )בערך(: בשורת הכותרת", ""],
-        ["כשמחובר לחשמל מופיע: %**", ""],
-        ["אור אדום דולק בחור: הסוללה נטענת", ""],
-        ["לחצן תחתון: הדלקה וכיבוי", ""],
-        ["לחצן עליון: ביצוע פעולות כדלהלן", ""],
-        ["לחיצה קצרה: שינוי מיקום", ""],
-        ["לחיצה מתמשכת: הגדרת מיקום קבוע", ""],
-        ["התחלה כשהלחצן לחוץ: עדכון שעון", ""],
-        ["הדלקה בשני הלחצנים: עדכון תוכנה", ""],
-        [" עדכונים דורשים רשת ללא סיסמה", ""],
-        [f"כשהשעון מכוון: דיוק הזמנים {reverse('10')} שניות", ""],
+        [f"שעון ההלכה גרסה: {reverse(VERSION)}"],
+        [" מאת: שמחה גרשון בורר - כוכבים וזמנים"],
+        [f'{reverse("sgbmzm@gmail.com")}'],
+        ["כל הזכויות שמורות - להלן הסברים"],
+        ["בתקלה: יש ללחוץ על לחצן האיפוס"],
+        ["אחוז הסוללה )בערך(: בשורת הכותרת"],
+        ["כשמחובר לחשמל מופיע: %**"],
+        ["אור אדום דולק בחור: הסוללה נטענת"],
+        ["לחצן תחתון: הדלקה וכיבוי"],
+        ["לחצן עליון: ביצוע פעולות כדלהלן"],
+        ["לחיצה קצרה: שינוי מיקום"],
+        ["לחיצה מתמשכת: הגדרת מיקום קבוע"],
+        ["התחלה כשהלחצן לחוץ: עדכון שעון"],
+        ["הדלקה בשני הלחצנים: עדכון תוכנה"],
+        [" עדכונים דורשים רשת ללא סיסמה"],
+        [f"כשהשעון מכוון: דיוק הזמנים {reverse('10')} שניות"],
         
-        [" התאריך העברי מתחלף בשקיעה", ""],
+        [" התאריך העברי מתחלף בשקיעה"],
         
-        [" מתחת גרא/מגא:  דקות בשעה זמנית", ""],
-        [" מתחת שמש/ירח:  אזימוט שמש/ירח", ""],
-        ["אזימוט = מעלות מהצפון, וכדלהלן", ""],
-        [f"צפון={reverse('0/360')}, מז={reverse('90')}, ד={reverse('180')}, מע={reverse('270')}", ""],
-        ["  שלב הירח במסלולו החודשי - באחוזים", ""],
-        [f"מולד={reverse('0/100')}, ניגוד={reverse('50')}, רבעים={reverse('25/75')}", ""],
+        [" מתחת גרא/מגא:  דקות בשעה זמנית"],
+        [" מתחת שמש/ירח:  אזימוט שמש/ירח"],
+        ["אזימוט = מעלות מהצפון, וכדלהלן"],
+        [f"צפון={reverse('0/360')}, מז={reverse('90')}, ד={reverse('180')}, מע={reverse('270')}"],
+        ["  שלב הירח במסלולו החודשי - באחוזים"],
+        [f"מולד={reverse('0/100')}, ניגוד={reverse('50')}, רבעים={reverse('25/75')}"],
     
-        ["רשימת זמני היום בשעות זמניות", ""],
-        ["זריחה ושקיעה במישור", "00:00"],
-        ["סוף שמע ביום/רבע הלילה", "03:00"],
-        ["  סוף תפילה ביום/שליש הלילה", "04:00"],
-        ["חצות יום ולילה", "06:00"],
-        ["מנחה גדולה", "06:30"],
-        ["מנחה קטנה", "09:30"],
-        ["פלג המנחה", "10:45"],
-        [f"מגא מחושב לפי {reverse('-16°')} בבוקר ובערב", ""],
+        ["רשימת זמני היום בשעות זמניות"],
+        ["זריחה ושקיעה: "+reverse('00:00')],
+        ["סוף שמע ביום/רבע הלילה: "+reverse('03:00')],
+        ["  סוף תפילה ביום/שליש הלילה: "+reverse('04:00')],
+        [f"חצות יום ולילה: "+reverse('06:00')],
+        ["מנחה: גדולה - "+reverse('06:30')+", קטנה - "+reverse('09:30')],
+        ["פלג המנחה: "+reverse('10:45')],
+        [f"מגא מחושב לפי {reverse('-16°')} בבוקר ובערב"],
         
-        ["   זמנים במעלות כשהשמש תחת האופק", ""],
-        ["זריחת ושקיעת מרכז השמש", "0.0°"],
-        ["  זריחה ושקיעה במישור", "-0.833°"],
+        ["   זמנים במעלות כשהשמש תחת האופק"],
+        [f"זריחת ושקיעת מרכז השמש: {reverse('0.0°')}"],
+        [f"  זריחה ושקיעה במישור: {reverse('-0.833°')}"],
         
-        [f"זמני צאת הכוכבים {reverse('3/4')} מיל במעלות", ""],
-        [f"לפי מיל של {reverse('18')} דקות", "-3.65°"],
-        [f"לפי מיל של {reverse('22.5')} דקות", "-4.2°"],
-        [f"לפי מיל של {reverse('24')} דקות", "-4.61°"],
-        ["צאת כוכבים קטנים רצופים", "-6.3°"],
+        [f"זמני צאת הכוכבים {reverse('3/4')} מיל במעלות"],
+        [f"{reverse('18')}: {reverse('-3.65°')}, {reverse('22.5')}: {reverse('-4.2°')}, {reverse('24')}: {reverse('-4.61°')}",""],
+        [f"צאת כוכבים קטנים רצופים: {reverse('-6.3°')}"],
         
-        ["  מעלות: עלות השחר/צאת כוכבים דרת", ""],
-        [f"לפי 4 מיל של {reverse('18')} דקות", "-16.02°"],
-        [f"לפי 4 מיל של {reverse('22.5')} דקות", "-19.75°"],
-        [f"לפי 5 מיל של {reverse('24')} דקות", "-25.8°"],
-        ["משיכיר/תחילת ציצית ותפילין", "-10.5°"],
+        ["  מעלות: עלות השחר/צאת כוכבים דרת"],
+        [f"{reverse('18')}: {reverse('-16.02°')}, {reverse('22.5')}: {reverse('-19.75°')}, {reverse('5x24')}: {reverse('-25.8°')}             "],
+        [f"משיכיר/תחילת ציצית ותפילין: {reverse('-10.5°')}"],
         
         
-        ["זמנים נוספים", ""],
-        ["להימנע מסעודה בערב שבת", "09:00"],
-        ["סוף אכילת חמץ", "04:00"],
-        ["סוף שריפת חמץ", "05:00"],
+        ["זמנים נוספים"],
+        ["להימנע מסעודה בערב שבת: "+reverse('09:00')],
+        ["סוף אכילת חמץ: "+reverse('04:00')+", שריפה: "+reverse('05:00')],
 
         
-        ["להלן תנאי מינימום לראיית ירח ראשונה", ""],
-        [f"שלב {reverse('3%')}; והפרש גובה שמש-ירח {reverse('8°')}", ""],
+        ["להלן תנאי מינימום לראיית ירח ראשונה"],
+        [f"שלב {reverse('3%')}; והפרש גובה שמש-ירח {reverse('8°')}"],
     
     ]  
 
@@ -799,24 +792,56 @@ def get_current_location_timestamp():
     return current_utc_timestamp, current_location_timestamp, location_offset_hours, location_offset_seconds
 
 
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-########################################################################################3
-# פונקציה לקרוא את מספר המיקום ברירת מחדל מתוך הקובץ
-def read_default_location():
+settings_dict = {
+    "rise_set_deg": -0.833, #-0.833 # מה גובה השמש בשעת זריחה ושקיעה. קובע לשעון שעה זמנית גרא ולהדפסת הזמנים
+    "mga_deg": -16, # מה גובה השמש בשעת עלות השחר וצאת הכוכבים דרת. קובע לשעון שעה זמנית מגא ולהדפסת הזמנים
+    "hacochavim_deg": -4.61, # מה גובה השמש בשעת צאת הכוכבים לשיטת הגאונים. קובע להדפסת הזמנים
+    "misheiacir_deg": -10.5, # מה גובה השמש בשעת משיכיר. קובע להדפסת הזמנים
+    "hesberim_mode": "hesberim", # "hesberim" or "zmanim", or "clocks"
+    "default_location_index": 0, # מה מיקום ברירת המחדל שמוגדר
+}
+
+
+def load_sesings_dict_from_file():
+    global settings_dict
     try:
-        with open("halacha_clock/default_location.txt", "r") as f:
-            return int(f.read().strip())  # קורא וממיר למספר שלם
-    except:
-        return 0  # אם יש שגיאה, ברירת מחדל תהיה 0
+        settings_path = "settings.json"
+        with open(settings_path, "r") as f:
+            loaded_settings = ujson.load(f)
+            # עדכון ההגדרות הקיימות עם הערכים מהקובץ כך שלא מאבדים ערכים שלא נמצאים בקובץ
+            settings_dict.update(loaded_settings)
+            #settings_dict = loaded_settings
+            print(settings_dict)
+            print("הגדרות נטענו בהצלחה מתוך הקובץ")
+    except Exception as e:
+        print(f"שגיאה בטעינת הקובץ: {e}")
+
+load_sesings_dict_from_file() # פעם אחת בתחילת הקוד
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
 
 # הגדרת משתנה גלובלי חשוב מאוד שקובע מה המיקום הנוכחי שעליו מתבצעים החישובים
 # משתנה זה נקבע לפי המיקום האינדקסי ששמור בקובץ מיקום ברירת מחדל תוך בדיקה שהאינדקס לא חורג מגבולות הרשימה ואם כן חורג אז יוגדר המיקום האפס כברירת מחדל
 # קריאת המיקום מתוך הרשימה בהתאם למספר שבקובץ
-default_index = read_default_location()
-location = locations[default_index] if 0 <= default_index < len(locations) else locations[0] 
+default_index = None
+location = None 
 # אינדקס המיקום הנוכחי משתנה גלובלי חשוב מאוד לצורך התקדמות ברשימת המיקומים
 # הגדרה שלו על אפס גורמת שכל דפדוף ברשימת המיקומים יתחיל מהתחלה ולא ימשיך מהמיקום האינדקסי של מיקום ברירת המחדל
-location_index = 0
+location_index = None
+
+# פונקצייה שמחזירה את מיקום ברירת המחדל להיות המיקום הנוכחי
+def go_to_default_location():
+    # הצהרה על משתנים גלובליים
+    global location, location_index
+    # מחזיר את המיקום הנוכחי להיות מיקום ברירת מחדל
+    default_index = settings_dict["default_location_index"]
+    location = locations[default_index] if 0 <= default_index < len(locations) else locations[0]
+    # מאפס את המיקום שאוחזים בו בדפדוף ברשימת המיקומים כך שהדפדוף הבא יתחיל מהתחלה ולא מהמיקום האינדקסי של מיקום ברירת המחדל
+    location_index = 0
+    
+go_to_default_location() # קריאה פעם אחת בתחילת הקוד
 
 ##############################################################################################
 
@@ -827,8 +852,6 @@ current_screen_hesberim = 0.0  #
 # משתנה לשליטה אלו נתונים יוצגו בשורת הזמנים 
 current_screen_zmanim = 0
 
-###########################################################
-
 # ארבעה משתנים מאוד חשובים ששומרים את המיקום הקודם והתאריך הקודם והפרש מגריניץ הקודם ואובייקט ריסט הקודם שהיו מוגדרים
 # זה כדי שנתוני הזריחות והשקיעות יחושבו שוב רק אם השתנה תאריך או מקום
 last_location = None
@@ -836,11 +859,6 @@ last_location_date = None
 last_location_offset_hours = None
 last_location_riset = None
 
-degs_for_rise_set = -0.833 # מה גובה השמש בשעת זריחה ושקיעה. קובע לשעון שעה זמנית גרא ולהדפסת הזמנים
-degs_for_mga = -16 # מה גובה השמש בשעת עלות השחר וצאת הכוכבים דרת. קובע לשעון שעה זמנית מגא ולהדפסת הזמנים
-degs_for_tset_hacochavim = -4.61 # מה גובה השמש בשעת צאת הכוכבים לשיטת הגאונים. קובע להדפסת הזמנים
-degs_for_misheiacir = -10.5 # מה גובה השמש בשעת משיכיר. קובע להדפסת הזמנים
-hesberim_zmanim_clocks = "hesberim" # or "zmanim", or "clocks"
 
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
 def main_halach_clock():
@@ -880,7 +898,7 @@ def main_halach_clock():
         # tlight_deg קובע כמה מעלות תחת האופק ייחשב דמדומים ואם לא מוגדר אז לא מחושב
         # riset_deg קובע כמה מעלות תחת האופק ייחשב זריחה ושקיעה ואם לא מוגדר אז מחושב -0.833 
         # יצירת אובייקט RiSet # הקריאה הזו כבר מחשבת נתוני זריחות ושקיעות באותו יום אבל ממילא מוכרחים בסוף להגדיר riset.set_day(0) ואז יחושבו שוב
-        riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg= degs_for_rise_set, tlight_deg= degs_for_mga) # lto=location_offset_hours ####
+        riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg=settings_dict["rise_set_deg"], tlight_deg= settings_dict["mga_deg"]) # lto=location_offset_hours ####
         
         # הגדרת התאריך על היום הקודם ושמירת המידע הדרוש 
         riset.set_day(-1)
@@ -908,7 +926,7 @@ def main_halach_clock():
         # בכל מופע כזה אפשר לחשב 2 זמנים שלכל אחד מהם יש התחלה וסוף - וההתחלה זה זריחה והסוף זה שקיעה
         # אם השמש לא מגיעה לגובה המבוקש בתאריך ובמיקום המבוקש - זה מחזיר None
         # כאן לא צריך לחשב עבור היום הקודם אלא זה מידע ליממה הנוכחית. לכן לא צריך להגדיר riset1.set_day(0) כי זה קורה לבד
-        riset1 = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg= degs_for_tset_hacochavim, tlight_deg= degs_for_misheiacir)
+        riset1 = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg=settings_dict["hacochavim_deg"], tlight_deg=settings_dict["misheiacir_deg"])
         tset_hacochavim, misheiakir = riset1.sunset(1), riset1.tstart(1)
         ########################################################################
         
@@ -1125,9 +1143,7 @@ def main_halach_clock():
     
     # הכנה לשורת הסברים מתחלפת
     global current_screen_hesberim
-    text = reverse(hesberim[int(current_screen_hesberim)][0])  # רוורס של הטקסט העברי
-    time_value = hesberim[int(current_screen_hesberim)][1]  # הערך להצגה
-    hesberim_string = f"{time_value}  :{text}" if time_value != "" else f"{text}"
+    hesberim_string = reverse(hesberim[int(current_screen_hesberim)][0])  # רוורס של הטקסט העברי
     current_screen_hesberim = (current_screen_hesberim + 0.3) % len(hesberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
     
     # הכנה לשורת זמנים מתחלפת
@@ -1139,9 +1155,21 @@ def main_halach_clock():
     clocks_string = f"           {gm_time_now_string}  {local_mean_time_string}  {local_solar_time_string}  {magrab_time_string}"
     
     # קביעה מה יודפס בשורת ההסברים: האם שעונים זמנים או הסברים. ולאחר מכן הדפסה למסך של מה שנבחר
-    global hesberim_zmanim_clocks
+    hesberim_zmanim_clocks = settings_dict["hesberim_mode"]
     print_in_hesberim_line = zmanim_string if hesberim_zmanim_clocks == "zmanim" else clocks_string if hesberim_zmanim_clocks == "clocks" else hesberim_string
     tft.write(FontHeb20, f"{print_in_hesberim_line}" ,center(print_in_hesberim_line, FontHeb20) , 123)  # כתיבה למסך
+    '''
+    # אופצייות להחלפת מה מוצג בשורת ההסברים כל רגע מוצג משהו אחר
+    sss = ["hesberim", "zmanim", "clocks"]
+    global current_hesberim_index
+    current_hesberim_index = 0.0 # זה צריך להיות מחוץ לפונקצייה
+    current_hesberim_index = (current_hesberim_index + 0.15) % len(sss)
+    # עדכון המשתנה ל"שורה הבאה" ברשימה
+    hesberim_zmanim_clocks = sss[int(current_hesberim_index)]
+    # אופצייה אחרת אבל התחלפות כל שנייה
+    #current_index = sss.index(hesberim_zmanim_clocks)
+    #hesberim_zmanim_clocks = sss[(current_index + 1) % len(sss)]
+    '''
     
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                 {utc_offset_string}',0,147)
@@ -1168,21 +1196,26 @@ def main_halach_clock():
 def save_default_location(index):
     """ שומר את המיקום הנוכחי בקובץ """
     try:
-        with open("halacha_clock/default_location.txt", "w") as f:
-            f.write(str(index))
+        # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
+            global settings_dict
+            settings = {"default_location_index": index}
+            settings_dict.update(settings)
+            
+            # כל ההגדרות המעודכנות לקובץ JSON
+            with open("settings.json", "w") as f:
+                ujson.dump(settings_dict, f)
+            
+            # הדפסה למסך שנבחר מיקום ברירת מחדל חדש
+            tft.fill(0) # מחיקת המסך
+            tft.write(FontHeb20,f'{reverse("מיקום ברירת מחדל הוגדר בהצלחה")}',20,75)
+            tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',120,100)
+            tft.show() # כדי להציג את הנתונים על המסך
+            time.sleep(2) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
+            
     except Exception as e:
         print("שגיאה בשמירת המיקום:", e)
 
 
-# פונקצייה שמחזירה את מיקום ברירת המחדל להיות המיקום הנוכחי
-def go_to_default_location():
-    # הצהרה על משתנים גלובליים
-    global location, location_index
-    # מחזיר את המיקום הנוכחי להיות מיקום ברירת מחדל
-    default_index = read_default_location()
-    location = locations[default_index] if 0 <= default_index < len(locations) else locations[0]
-    # מאפס את המיקום שאוחזים בו בדפדוף ברשימת המיקומים כך שהדפדוף הבא יתחיל מהתחלה ולא מהמיקום האינדקסי של מיקום ברירת המחדל
-    location_index = 0
 
 ############################################################################################################################################################
 #################################################################   איזור הטיפול במד טמפרטורה לחות ולחץ ברומטרי  ###########################################
@@ -1352,16 +1385,190 @@ def handle_button_press(specific_button):
     start_time = time.ticks_ms()
     # הלולאה הזו מתבצעת אם לוחים ברציפות בלי לעזוב
     while specific_button.value() == 0:  # כל עוד הכפתור לחוץ
-        if time.ticks_diff(time.ticks_ms(), start_time) > 3000:  # לחיצה ארוכה מעל 3 שניות
+        if time.ticks_diff(time.ticks_ms(), start_time) > 2000:  # לחיצה ארוכה מעל 2 שניות
             return "long"
     # מכאן והלאה מתבצע רק אחרי שעוזבים את הכפתור ואז מודדים כמה זמן היה לחוץ
     if 100 < time.ticks_diff(time.ticks_ms(), start_time) < 1000: # לחיצה קצרה מתחת לשנייה אחת אבל מעל 100 מיקרו שניות כדי למנוע לחיצה כפולה
         return "short"
     return None  # במידה ולא זוהתה לחיצה
 
-######################################################################################################33
+######################################################################################################
 
-def toggle_location(pin):
+# הפעלה של התפריט
+def menu_settings_loop(only_key=None):
+
+    # כל האפשרויות – לא צריך לטעון מהפעם הקודמת
+    menu_items = [
+        {"title": "בחר שיטת זריחה ושקיעה", "key": "rise_set_deg", "options": [0, -0.833], "suffix": "°"},
+        {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
+        {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.61, -6, -8.5], "suffix": "°"},
+        {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10], "suffix": "°"},
+        {"title": "בחר שורה להצגה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks"], "suffix": ""},
+    ]
+    
+    
+    if only_key is not None:
+        menu_items = [item for item in menu_items if item["key"] == only_key]
+        if not menu_items:
+            print(f"שגיאה: לא נמצא פריט עם המפתח {only_key}")
+            return
+    
+    
+    # אתחול אינדקסים תמיד מהאפשרות הראשונה
+    for item in menu_items:
+        item["index"] = 0
+
+    # מילון לשמירה בסוף
+    settings = {}
+
+    total = len(menu_items)
+    for stage, item in enumerate(menu_items, start=1):
+        while True:
+            tft.fill(0)
+            tft.write(FontHeb20, reverse(f"שלב {stage} מתוך {total}"), 20, 20)
+            tft.write(FontHeb20, reverse(item["title"]), 20, 60)
+
+            index = item["index"]
+            options = item["options"]
+            value = options[index % len(options)]
+            display_val = f"{reverse(str(value))}{item['suffix']}"
+            tft.write(FontHeb25, reverse(display_val), 100, 100)
+            tft.show()
+
+            duration = handle_button_press(boot_button)
+            if duration == "short":
+                item["index"] = (index + 1) % len(options)
+            elif duration == "long":
+                # שמירה של הבחירה במילון
+                settings[item["key"]] = value
+                tft.fill(0)
+                tft.write(FontHeb25, reverse(f"נבחר: {display_val}"), 40, 80)
+                tft.show()
+                time.sleep(2)
+                break
+    
+    # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
+    global settings_dict
+    settings_dict.update(settings)
+    
+    # כל ההגדרות המעודכנות לקובץ JSON
+    with open("settings.json", "w") as f:
+        ujson.dump(settings_dict, f)
+
+    # הודעת סיום
+    tft.fill(0)
+    tft.write(FontHeb25, reverse("ההגדרות נשמרו!"), 40, 80)
+    tft.show()
+    time.sleep(1)
+    # איפוס משתנים כדי שיתחילו ההסברים והזמנים מהתחלה אם נבחרו
+    current_screen_hesberim = 0.0
+    current_screen_zmanim = 0
+    load_sesings_dict_from_file() # טעינת ההגדרות החדשות
+    
+    
+
+
+# === פונקצייה להצגת ההגדרות הנוכחיות ===
+def show_current_settings():
+    
+    tft.fill(0)
+    tft.write(FontHeb25, reverse("הגדרות נוכחיות:"), 70, 5)
+    tft.write(FontHeb20, reverse("לחצו לחיצה ארוכה ליציאה"), 50, 30)
+    y_pos = 50
+    
+    names_hebrew = {
+        "rise_set_deg": "זריחה ושקיעה",
+        "mga_deg": "מגא עלות השחר ורבינו תם",
+        "hacochavim_deg": "צאת הכוכבים גאונים",
+        "misheiacir_deg": "משיכיר",
+        "hesberim_mode": "מצב תצוגה",
+        "default_location_index": "מיקום ברירת מחדל",
+    }
+
+    modes = {
+        "hesberim": "הסברים",
+        "zmanim": "זמנים",
+        "clocks": "שעונים",
+    }
+
+
+    # מעבר על כל מפתח במילון והצגתו
+    for key, value in settings_dict.items():
+        if key == "default_location_index":
+            value = reverse(locations[value]["heb_name"])
+        elif key == "hesberim_mode":
+            value = reverse(modes.get(value, value))
+        line = f"{reverse(names_hebrew.get(key, key))}:  {value}°"
+        tft.write(FontHeb20, line, 20, y_pos)
+        y_pos += 20
+
+    tft.show()
+
+    # המתנה לחיצה ארוכה כדי לחזור
+    while True:
+        if handle_button_press(boot_button) == "long":
+            return
+
+
+def main_menu():
+    # אפשרויות התפריט הראשי
+    main_menu = [
+        {"title": "הגדרת מיקום נוכחי כברירת מחדל", "action": "update_location"},
+        {"title": "עדכון שעון פנימי מהרשת", "action": "update_time"},
+        {"title": "עדכון כל ההגדרות", "action": "update_settings"},
+        {"title": "עדכון הגדרות תצוגה", "action": "update_hesberim_mode"},
+        {"title": "הצגת הגדרות נוכחיות", "action": "show_settings"},
+        {"title": "יציאה", "action": "return"},
+    ]
+
+    index = 0
+    choice_made = False
+
+    # פונקצייה להצגת התפריט
+    def show_menu():
+        tft.fill(0)
+        tft.write(FontHeb25, reverse("בחר אפשרות בלחיצה ארוכה:"), 20, 2)
+        y_pos = 30
+        for i, item in enumerate(main_menu):
+            prefix = "<" if i == index else " "  # סימן בחירה
+            # כל שורה תוצג בגובה אחיד
+            text_line = reverse(f"{prefix} {item['title']}")
+            tft.write(FontHeb20, text_line, 20, y_pos)
+            y_pos += 20
+        tft.show()
+
+    show_menu()
+
+    # לולאת הבחירה
+    while not choice_made:
+        duration = handle_button_press(boot_button)
+        if duration == "short":
+            index = (index + 1) % len(main_menu)
+            show_menu()
+
+        elif duration == "long":
+            choice_made = True
+            selected = main_menu[index]
+
+            # הפעלת פעולה מתאימה
+            if selected["action"] == "update_location":
+                save_default_location(location_index)
+            if selected["action"] == "update_time":
+                ntp_update = True
+                check_and_set_time()
+            elif selected["action"] == "update_settings":
+                menu_settings_loop()
+            elif selected["action"] == "update_hesberim_mode":
+                menu_settings_loop("hesberim_mode")
+            elif selected["action"] == "show_settings":
+                show_current_settings()
+            elif selected["action"] == "return":
+                return    
+    
+
+#######################################################################################################
+
+def toggle_boot_button(pin):
     """ מטפל בלחיצה על הכפתור של שינוי וטיפול במיקומים ומבדיל בין לחיצה קצרה ללחיצה ארוכה """
     
     #######################################################
@@ -1390,19 +1597,12 @@ def toggle_location(pin):
         location = locations[location_index]  # שליפת המילון של המיקום הנוכחי
              
     elif duration == "long":
-        # לחיצה ארוכה: שמירת המיקום כברירת מחדל
-        save_default_location(location_index)
-        
-        # הדפסה למסך שנבחר מיקום ברירת מחדל חדש
-        tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb20,f'{reverse("מיקום ברירת מחדל הוגדר בהצלחה")}',20,75)
-        tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',120,100)
-        tft.show() # כדי להציג את הנתונים על המסך
-        time.sleep(5) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
-        
+        boot_button.irq(handler=None) # מבטל את הקריאה של הכפתור לפונקצייה זו
+        main_menu() # נכנסים לתפריט הראשי
+        boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_boot_button) # אחרי חזרה מהתפריט - נחזיר את ה־IRQ
 
 # חיבור הכפתור לפונקציה
-boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_location)
+boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_boot_button)
 
 
 ##############################################################################################################################3
