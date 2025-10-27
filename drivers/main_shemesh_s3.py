@@ -1086,17 +1086,22 @@ def main_halach_clock():
     zmanim = [
         ["זמנים בשעון רגיל - עיגול לדקה קרובה"],
         [f"עלות השחר: {reverse(hhh(mga_sunrise, 0, 0))} | משיכיר: {reverse(hhh(misheiakir, 0, 0))}"], 
-        [f"זריחה מישורית: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
+        [f"זריחה גרא: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
         [f"סוף שמע: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=3))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=3))}"], 
         [f"סוף תפילה: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=4))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=4))}"],
         [f"חצות היום - וכנגדו בלילה: {reverse(hhh(sunrise, seconds_day_gra, hour=6))}"],
         [f"מנחה: גדולה - {reverse(hhh(sunrise, seconds_day_gra, hour=6.5))}, קטנה - {reverse(hhh(sunrise, seconds_day_gra, hour=9.5))}"],
         [f"פלג המנחה - {reverse(hhh(sunrise, seconds_day_gra, hour=10.75))}"],
-        [f"שקיעה מישורית: {reverse(hhh(sunrise, seconds_day_gra, hour=12))}"],
+        [f"שקיעה גרא: {reverse(hhh(sunrise, seconds_day_gra, hour=12))}"],
         [f"כוכבים: גאונים - {reverse(hhh(tset_hacochavim, 0, 0))}, רת - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=12))}"],
     ]
     
+    ### הכנה לשורת שעונים. הרווחים הם בכוונה לצורך מירכוז בשעון ההלכה הפיזי
+    clocks_string = f"           {magrab_time_string}  {local_mean_time_string}  {local_solar_time_string}  {gm_time_now_string}"
     
+    # משתנה ששומר מערך זמנים שבו אחרי כל שורת זמן יש שורת שעונים וכך הזמנים והשעונים מוצגים לסירוגין
+    zmanim_with_clocks = [item for zman_line in zmanim for item in (zman_line, [reverse(clocks_string)])]
+ 
     #############################################################################
     
     
@@ -1111,9 +1116,9 @@ def main_halach_clock():
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
     
     # מהשקיעה עד 12 בלילה מוסיפים את המילה ליל כי היום בשבוע והתאריך העברי מקבלים לתאריך הלועזי של מחר
-    leil_string = reverse("ליל: ") if heb_date_is_next_greg_date else ""
+    leil_string = reverse("ליל:") if heb_date_is_next_greg_date else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_to_print = f'{"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)}{leil_string}'
+    heb_date_to_print = f'   {"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)} {leil_string}'
     utc_offset_string = 'utc+00' if location_offset_hours == 0 else f'utc+{location_offset_hours:02}' if location_offset_hours >0 else f'utc-{abs(location_offset_hours):02}'
     coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}'
     
@@ -1128,7 +1133,7 @@ def main_halach_clock():
     tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
    
     # איזור שעה זמנית
-    mga_string = "מגא!" if settings_dict["mga_deg"] != -16 else "מגא "
+    mga_string = "מגא!" if settings_dict["mga_deg"] != -16 else "מגא"
     gra_string = "גרא!" if settings_dict["rise_set_deg"] != -0.833 else "גרא "
     tft.write(FontHeb20,f'{reverse(mga_string)}',100,46)
     tft.write(FontHeb20,f'{reverse(gra_string)}',280,46)
@@ -1152,28 +1157,15 @@ def main_halach_clock():
     
     # הכנה לשורת זמנים מתחלפת
     global current_screen_zmanim
-    zmanim_string = reverse(zmanim[int(current_screen_zmanim)][0]) 
+    zmanim_string = reverse(zmanim[int(current_screen_zmanim)][0])
+    zmanim_with_clocks_string = reverse(zmanim_with_clocks[int(current_screen_zmanim)][0]) 
     current_screen_zmanim = (current_screen_zmanim + 0.15) % len(zmanim)
     
-    ### הכנה לשורת שעונים. הרווחים הם בכוונה לצורך מירכוז בשעון ההלכה הפיזי
-    clocks_string = f"           {gm_time_now_string}  {local_mean_time_string}  {local_solar_time_string}  {magrab_time_string}"
-    
-    # קביעה מה יודפס בשורת ההסברים: האם שעונים זמנים או הסברים. ולאחר מכן הדפסה למסך של מה שנבחר
+    # קביעה מה יודפס בשורת ההסברים: האם שעונים זמנים או הסברים. ולאחר מכן הדפסה למסך של מה שנבחר   
     hesberim_zmanim_clocks = settings_dict["hesberim_mode"]
-    print_in_hesberim_line = zmanim_string if hesberim_zmanim_clocks == "zmanim" else clocks_string if hesberim_zmanim_clocks == "clocks" else hesberim_string
+    hesberim_zmanim_clocks_options_dict = {"zmanim": zmanim_string,"clocks": clocks_string,"zmanim_with_clocks": zmanim_with_clocks_string}
+    print_in_hesberim_line = hesberim_zmanim_clocks_options_dict.get(hesberim_zmanim_clocks, "hesberim_string") # ערך ברירת המחדל הוא הסברים 
     tft.write(FontHeb20, f"{print_in_hesberim_line}" ,center(print_in_hesberim_line, FontHeb20) , 123)  # כתיבה למסך
-    '''
-    # אופצייות להחלפת מה מוצג בשורת ההסברים כל רגע מוצג משהו אחר
-    sss = ["hesberim", "zmanim", "clocks"]
-    global current_hesberim_index
-    current_hesberim_index = 0.0 # זה צריך להיות מחוץ לפונקצייה
-    current_hesberim_index = (current_hesberim_index + 0.15) % len(sss)
-    # עדכון המשתנה ל"שורה הבאה" ברשימה
-    hesberim_zmanim_clocks = sss[int(current_hesberim_index)]
-    # אופצייה אחרת אבל התחלפות כל שנייה
-    #current_index = sss.index(hesberim_zmanim_clocks)
-    #hesberim_zmanim_clocks = sss[(current_index + 1) % len(sss)]
-    '''
     
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
     tft.write(FontHeb25,f' {greg_date_string}                 {utc_offset_string}',0,147)
@@ -1407,13 +1399,14 @@ def menu_settings_loop(only_key=None):
         {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
         {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.61, -6, -8.5], "suffix": "°"},
         {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10], "suffix": "°"},
-        {"title": "בחר שורה להצגה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks"], "suffix": ""},
+        {"title": "בחר מה להציג בשורה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks", "zmanim_with_clocks"], "suffix": ""},
     ]
     
     modes_hebrew = {
         "hesberim": reverse("הסברים ומידע"),
         "zmanim": reverse("זמנים"),
         "clocks": reverse("שעונים"),
+        "zmanim_with_clocks": reverse("זמנים עם שעונים"),
     }
     
     if only_key is not None:
@@ -1446,9 +1439,9 @@ def menu_settings_loop(only_key=None):
                 return  # יציאה מהפונקציה לגמרי
             
             tft.fill(0)
-            tft.write(FontHeb20, reverse(f"לחיצה קצרה לשינוי, וארוכה לבחירה"), 20, 2)
-            tft.write(FontHeb20, reverse(f"שלב {stage} מתוך {total}"), 20, 25)
-            tft.write(FontHeb20, reverse(item["title"]), 20, 50)
+            tft.write(FontHeb20, reverse(f"לחיצה קצרה לשינוי, וארוכה לבחירה"), 20, 2, s3lcd.GREEN, s3lcd.BLACK)
+            tft.write(FontHeb20, reverse(f"שלב {stage} מתוך {total}"), 20, 25, s3lcd.YELLOW, s3lcd.BLACK)
+            tft.write(FontHeb20, reverse(item["title"]), 20, 50, s3lcd.GREEN, s3lcd.BLACK)
 
             index = item["index"]
             options = item["options"]
@@ -1495,8 +1488,8 @@ def menu_settings_loop(only_key=None):
 def show_current_settings():
     last_activity = time.time()  # זמן התחלה של המעקב
     tft.fill(0)
-    tft.write(FontHeb25, reverse("הגדרות נוכחיות:"), 70, 5)
-    tft.write(FontHeb20, reverse("לחצו לחיצה ארוכה ליציאה"), 50, 30)
+    tft.write(FontHeb25, reverse("הגדרות נוכחיות:"), 70, 5, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20, reverse("לחצו לחיצה ארוכה ליציאה"), 50, 30, s3lcd.GREEN, s3lcd.BLACK)
     y_pos = 50
     
     names_hebrew = {
@@ -1512,6 +1505,7 @@ def show_current_settings():
         "hesberim": "הסברים",
         "zmanim": "זמנים",
         "clocks": "שעונים",
+        "zmanim_with_clocks": "זמנים עם שעונים",
     }
 
 
@@ -1539,7 +1533,7 @@ def main_menu():
         {"title": "הגדרת מיקום נוכחי כברירת מחדל", "action": "update_location"},
         {"title": "עדכון שעון פנימי מהרשת", "action": "update_time"},
         {"title": "עדכון כל ההגדרות", "action": "update_settings"},
-        {"title": "עדכון הגדרות תצוגה", "action": "update_hesberim_mode"},
+        {"title": "הגדרת שורת ההסברים", "action": "update_hesberim_mode"},
         {"title": "הצגת הגדרות נוכחיות", "action": "show_settings"},
         {"title": "יציאה", "action": "return"},
     ]
@@ -1550,7 +1544,7 @@ def main_menu():
     # פונקצייה להצגת התפריט
     def show_menu():
         tft.fill(0)
-        tft.write(FontHeb25, reverse("בחר אפשרות בלחיצה ארוכה:"), 20, 2)
+        tft.write(FontHeb25, reverse("בחר אפשרות בלחיצה ארוכה:"), 20, 2,  s3lcd.GREEN, s3lcd.BLACK)
         y_pos = 30
         for i, item in enumerate(main_menu):
             prefix = "<" if i == index else " "  # סימן בחירה
