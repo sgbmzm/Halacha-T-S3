@@ -1128,7 +1128,10 @@ def main_halach_clock():
     tft.write(FontHeb25,f'{heb_date_to_print}',center(heb_date_to_print,FontHeb25),20, HEB_DATE_FG, HEB_DATE_BG)
    
     # איזור שעה זמנית
-    tft.write(FontHeb20,f'                 {reverse("מגא")}                         {reverse("גרא")}',0,46)
+    mga_string = "מגא!" if settings_dict["mga_deg"] != -16 else "מגא "
+    gra_string = "גרא!" if settings_dict["rise_set_deg"] != -0.833 else "גרא "
+    tft.write(FontHeb20,f'{reverse(mga_string)}',100,46)
+    tft.write(FontHeb20,f'{reverse(gra_string)}',280,46)
     tft.write(FontHeb40,f'{temporal_time}', 140, 45, s3lcd.GREEN, s3lcd.BLACK)
     tft.write(FontHeb20,f'{minutes_in_temporal_hour}',283,62, s3lcd.CYAN, s3lcd.BLACK) # אם עושים דקות ושניות אז המיקום 277 ולא 283 אבל אין מקום
     tft.write(FontHeb25,f' {mga_temporal_time}', 0, 50, s3lcd.GREEN, s3lcd.BLACK)
