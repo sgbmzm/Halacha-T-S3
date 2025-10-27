@@ -852,19 +852,15 @@ current_screen_hesberim = 0.0  #
 # משתנה לשליטה אלו נתונים יוצגו בשורת הזמנים 
 current_screen_zmanim = 0
 
-# ארבעה משתנים מאוד חשובים ששומרים את המיקום הקודם והתאריך הקודם והפרש מגריניץ הקודם ואובייקט ריסט הקודם שהיו מוגדרים
-# זה כדי שנתוני הזריחות והשקיעות יחושבו שוב רק אם השתנה תאריך או מקום
-last_location = None
-last_location_date = None
-last_location_offset_hours = None
-last_location_riset = None
-
+# משתנים גלובליים
+last_state = None  # כאן נשמור את מצב כל הנתונים בפעם האחרונה. אם משהו כאן משתנה צריך לחשב מחדש זריחות ושקיעות
+last_location_riset = None # עבור אובייקט שמחזיק את חישובי השמש הירח הזריחות והשקיעות
 
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
 def main_halach_clock():
                  
-    global location, last_location, last_location_date, last_location_offset_hours, last_location_riset
     # הצהרה על משתנים גלובליים ששומרים את הזמנים הדרושים
+    global last_state, last_location_riset
     global sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise
     global tset_hacochavim, misheiakir
      
@@ -881,13 +877,21 @@ def main_halach_clock():
     
     # חישוב מה השעה הנוכחית בשבר עשרוני עבור חישובי גובה ואזימוט בהמשך הפונקצייה
     current_hour = (hour + (minute / 60) + (second / 3600)) - location_offset_hours
+    
+    # יצירת חתימה (state) של כל מה שחשוב לחישוב מחדש של זריחות ושקיעות
+    current_state = (
+        location, # אם משתנה מיקום
+        current_location_date, # אם משתנה תאריך
+        location_offset_hours, # אם משתנה משעון קיץ לחורף או להיפך
+        settings_dict["rise_set_deg"], # אם משתנה גובה המעלות שמגדיר את השיטה
+        settings_dict["mga_deg"], # אם משתנה גובה המעלות שמגדיר את השיטה
+        settings_dict["hacochavim_deg"], # אם משתנה גובה המעלות שמגדיר את השיטה
+        settings_dict["misheiacir_deg"], # אם משתנה גובה המעלות שמגדיר את השיטה
+    )
      
-    # במקרה שהתאריך השתנה או המיקום השתנה או שהשתנה שעון קיץ, יש לחשב מחדש את הזריחות והשקיעות והכל ולהקים אובייקט ריסט שמחשב הכל
-    # בהפעלה ראשונה של התוכנה זה תמיד נכנס ללולאה הזו
-    if location != last_location or current_location_date != last_location_date or location_offset_hours != last_location_offset_hours:
-         
-        #print("location != last_location or current_location_date != last_location_date")
-      
+    # אם המצב השתנה — נחשב מחדש. בהפעלה הראשונה תמיד נכנס לכאן כי בתחילה הוגדר על None
+    if current_state != last_state:
+        print("שינוי בזיהוי — מחשב מחדש זריחות ושקיעות")
         # ריקון כל המשתנים כדי שלא ישתמשו בנתונים לא נכונים
         sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise = [None] * 8
         tset_hacochavim, misheiakir = [None] * 2
@@ -913,14 +917,7 @@ def main_halach_clock():
         riset.set_day(0)
         sunrise, sunset, mga_sunrise, mga_sunset = riset.sunrise(1), riset.sunset(1), riset.tstart(1), riset.tend(1)
             
-        ####################################
-        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
-        last_location = location
-        last_location_date = current_location_date
-        last_location_offset_hours = location_offset_hours
-        last_location_riset = riset
-        ##########################################
-        
+        ##########################################################################
         # חישוב דמדומים נוספים עבור צאת הכוכבים או משיכיר את חבירו וכדומה באמצעות מופע מחלקה חדש
         # אני מנצל כאן את הגדרת גובה הזריחה והשקיעה וגובה הדמדומים ובמקום זה עושה את הגבהים המבוקשים עבורי
         # בכל מופע כזה אפשר לחשב 2 זמנים שלכל אחד מהם יש התחלה וסוף - וההתחלה זה זריחה והסוף זה שקיעה
@@ -929,6 +926,10 @@ def main_halach_clock():
         riset1 = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg=settings_dict["hacochavim_deg"], tlight_deg=settings_dict["misheiacir_deg"])
         tset_hacochavim, misheiakir = riset1.sunset(1), riset1.tstart(1)
         ########################################################################
+        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
+        last_location_riset = riset
+        last_state = current_state
+        ##########################################
         
    
     # בכל מקרה ריסט הוא הקודם שההיה בשימוש כדי לחסוך בחישובים מיותרים
