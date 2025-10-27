@@ -1486,10 +1486,11 @@ def show_about():
     last_activity = time.time()
     tft.fill(0)
     tft.write(FontHeb25, reverse("אודות שעון ההלכה"), center(reverse("אודות שעון ההלכה"), FontHeb25), 5, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb20, reverse(f"גרסה: {reverse(VERSION)}"), center(reverse(f"גרסה: {reverse(VERSION)}"), FontHeb20), 40)
-    tft.write(FontHeb20, reverse(f'{reverse("sgbmzm@gmail.com")}'), center(reverse(f'{reverse("sgbmzm@gmail.com")}'), FontHeb20), 70)
-    tft.write(FontHeb20, reverse("שמחה גרשון בורר - כוכבים וזמנים"), center(reverse("שמחה גרשון בורר - כוכבים וזמנים"), FontHeb20), 90)
-    tft.write(FontHeb20, reverse(f'כל הזכויות שמורות'), center(reverse(f'כל הזכויות שמורות'), FontHeb20), 120)
+    tft.write(FontHeb20, reverse(f"גרסה"), center(reverse(f"גרסה"), FontHeb20), 35)
+    tft.write(FontHeb20, reverse(f"{reverse(VERSION)}"), center(reverse(f"{reverse(VERSION)}"), FontHeb20), 52, s3lcd.GREEN, s3lcd.BLACK)
+    tft.write(FontHeb20, reverse("שמחה גרשון בורר - כוכבים וזמנים"), center(reverse("שמחה גרשון בורר - כוכבים וזמנים"), FontHeb20), 85)
+    tft.write(FontHeb20, reverse(f'{reverse("sgbmzm@gmail.com")}'), center(reverse(f'{reverse("sgbmzm@gmail.com")}'), FontHeb20), 105)
+    tft.write(FontHeb20, reverse(f'כל הזכויות שמורות'), center(reverse(f'כל הזכויות שמורות'), FontHeb20), 140)
     tft.show()
     # המתנה ללחיצה ארוכה או שתעבור דקה כדי לצאת מהפונקצייה
     while True:
