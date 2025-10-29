@@ -934,7 +934,7 @@ settings_dict = {
     "hacochavim_deg": -4.61, # מה גובה השמש בשעת צאת הכוכבים לשיטת הגאונים. קובע להדפסת הזמנים
     "misheiacir_deg": -10.5, # מה גובה השמש בשעת משיכיר. קובע להדפסת הזמנים
     "hesberim_mode": "hesberim", # "hesberim" or "zmanim", or "clocks"
-    "default_location_index": 0, # מה מיקום ברירת המחדל שמוגדר
+    "default_location_index": 26, # מה מיקום ברירת המחדל שמוגדר. כרגע 26 זה ירושלים.
 }
 
 
