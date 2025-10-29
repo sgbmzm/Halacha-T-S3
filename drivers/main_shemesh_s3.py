@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "29/10/2025"
+VERSION = "30/10/2025"
 
 ######################################################################################################################
 
@@ -70,12 +70,39 @@ adc = ADC(Pin(4))
 adc.atten(ADC.ATTN_11DB)  # קביעת טווח מתח עד כ-3.6V
 adc.width(ADC.WIDTH_12BIT)  # רזולוציה של 12 ביט (ערכים בין 0 ל-4095)
 
-# פונקציה למדידת מתח סוללה
-def read_battery_voltage():
-    raw_value = adc.read()  # קריאת הערך האנלוגי
-    voltage = (raw_value / 4095) * 3.6  # ממירים את הערך האנלוגי למתח (בטווח של 0-3.6V)
-    battery_voltage = voltage * 2  # מכפילים ב-2 בגלל מחלק המתח
-    return battery_voltage
+# משתנה חשוב שמגדיר מה המתח המירבי שיכול להיות לסוללה הפנימית ומעל זה קובעים שסימן שמחובר לחשמל או למקור מתח חיצוני
+max_battery_v = 4.55
+
+# משתנה מאוד חשוב ששומר את המתח בשנייה הקודמת כדי להשוות אליו ולבדוק האם חובר חשמל או נותק
+# זה מתעדכן כל שנייה מחדש בפונקציית מיין-מיין
+last_voltage = None # שומר את המתח האחרון שנמדד
+last_battery_percentage = None # שומר את אחוזי הסוללה האחרונים שנמדדו
+last_is_charging = None # שולט על כל הדברים שדורשים לדעת האם כעת המכשיר מחובר לחשמל
+
+# פונקציה למדידת מתח סוללה מתוך ממוצע של 10 קריאות מתח
+def read_battery_voltage(samples=10):
+    total = 0
+    for _ in range(samples):
+        total += adc.read()
+        time.sleep(0.005)  # חצי מילישנייה בין קריאות
+    avg = total / samples
+    voltage = (avg / 4095) * 3.6 * 2  # המרה למתח אמיתי
+    return voltage
+
+# כדי לדעת אם מחובר כעת לחשמל, כדאי לבדוק מספר קריאות רצופות
+def is_charging_function(voltage, threshold=max_battery_v, stable_reads=5):
+    count = 0
+    for _ in range(stable_reads):
+        if read_battery_voltage() > threshold:
+            count += 1
+        time.sleep(0.01)
+    return count >= stable_reads
+
+def get_battery_percentage(voltage, min_voltage=3.6, max_voltage=4.4):
+    """ מחשב אחוז סוללה על פי המתח הנמדד ומונע ערכים מחוץ לטווח 0%-100% """
+    percentage = ((voltage - min_voltage) / (max_voltage - min_voltage)) * 100
+    return round(max(0, min(100, percentage)))
+
 
 ##############################################3
 
@@ -83,13 +110,6 @@ def read_battery_voltage():
 BACKLIGHT = PWM(Pin(38, Pin.OUT), freq=2000) # ה: פרק, חשוב מאוד לגבי התדר וקובע גם את סוג הצפצופים שנשמעים בעיקר כשמחובר לחשמל
 PWM_MAX = 1023 # תאורה הכי גבוהה
 PWM_MIN = 0 # התאורה כבוייה
-
-# משתנה חשוב שמגדיר מה המתח המירבי שיכול להיות לסוללה הפנימית ומעל זה קובעים שסימן שמחובר לחשמל או למקור מתח חיצוני
-max_battery_v = 4.55
-
-# משתנה מאוד חשוב ששומר את המתח בשנייה הקודמת כדי להשוות אליו ולבדוק האם חובר חשמל או נותק
-# זה מתעדכן כל שנייה מחדש בפונקציית מיין-מיין
-voltage = read_battery_voltage()
 
 #############################################
 
@@ -831,12 +851,6 @@ locations = [
 
 
 
-def get_battery_percentage(voltage, min_voltage=3.6, max_voltage=4.4):
-    """ מחשב אחוז סוללה על פי המתח הנמדד ומונע ערכים מחוץ לטווח 0%-100% """
-    percentage = ((voltage - min_voltage) / (max_voltage - min_voltage)) * 100
-    return round(max(0, min(100, percentage)))
-
-
 # חישוב מה מרכז המסך כדי למרכז את הטקסט במרכז המסך
 # עדיין יש בעיות קטנות שאולי נגרמות מכך שיש אותיות צרות יותר מ MAX_WIDTH אבל אין מה לעשות כרגע
 # בינתיים זה הכי טוב שהגעתי אליו
@@ -1242,9 +1256,8 @@ def main_halach_clock():
     # מכאן והלאה ההדפסות למסך
     
     # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
-    global voltage
-    #voltage_string = f"{round(voltage,1)}v"
-    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"**%"
+    global last_battery_percentage, last_is_charging
+    voltage_string = f"**%" if last_is_charging else f"{last_battery_percentage}%"
     
     greg_date_string = f'{day:02d}/{month:02d}/{year:04d}{"!" if time_source in [3,4] else ""}' 
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
@@ -1460,9 +1473,8 @@ def main_bme280():
     dew_point = temp - ((100 - humidity) / 5)
     
     # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
-    global voltage
-    #voltage_string = f"{round(voltage,1)}v"
-    voltage_string = f"{get_battery_percentage(voltage)}%" if voltage < max_battery_v else f"**%"
+    global last_battery_percentage, last_is_charging
+    voltage_string = f"**%" if last_is_charging else f"{last_battery_percentage}%"
     
     tft.fill(0)
 
@@ -1836,15 +1848,13 @@ button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 def main_main():
     
     # הצהרה על משתנים גלובליים שצריך להגדיר אותם מחדש בתוך פונקצייה זו
-    global power_state, voltage, start_time_for_automatic_deepsleep, start_time_for_check_and_set_time, is_bme280_connected, bme
+    global power_state, start_time_for_automatic_deepsleep, start_time_for_check_and_set_time, is_bme280_connected, bme
+    global last_voltage, last_battery_percentage, last_is_charging
 
     # קריאת המתח של החשמל ולפי זה קביעת רמת התאורה האחורית של המסך כדי לחסוך בצריכת חשמל וכן הדלקת רכיבים נוספים שקשורים למסך ולכוח
-    current_voltage = read_battery_voltage()
-    # שווה לערך של המשתנה הכללי ששומר את המתח מהשנייה הקודמת
-    last_voltage = voltage   
-    # חייבים לאפס את זה כל שנייה מחדש כדי שנוכל להשוות את השנייה הקודמת לשנייה הנוכחית
-    # אחרי שקראנו ושמרנו את המתח הקודם, כעת מעדכנים את המשתנה הגלובלי במתח הנוכחי וזה משמש גם עבור דברים אחרים בתוכנה
-    voltage = current_voltage
+    current_voltage = read_battery_voltage()   
+    current_battery_percentage = get_battery_percentage(current_voltage)
+    current_is_charging = is_charging_function(current_voltage)
     
     # קורא את הזמן העדכני בכל שנייה מחדש
     current_time = time.time()
@@ -1855,7 +1865,8 @@ def main_main():
         start_time_for_automatic_deepsleep = current_time
             
     # תיקון כדי שניתוק מהחשמל ייתן ארכה של כמה שניות לפני כיבוי    
-    if last_voltage > max_battery_v and current_voltage < max_battery_v and abs(last_voltage - current_voltage) > 0.5:
+    ####if last_voltage > max_battery_v and current_voltage < max_battery_v and abs(last_voltage - current_voltage) > 0.5:
+    if not current_is_charging and last_is_charging:
         start_time_for_automatic_deepsleep = current_time
     
     # אם מוגדר שינה אוטומטית והמתח מראה שמחובר לסוללה ולא לחשמל ועברו ... דקות מאז הפעלת התוכנה אז מגדירים את המשתנה power_state לכבות את המכשיר
@@ -1863,8 +1874,18 @@ def main_main():
     # בתחילה מגדירים משתנה מאוד חשוב שקובע אחרי כמה זמן ניכנס למצב שינה או למסך כבוי באופן אוטומטי
     # כרגע מוגדר ל 200 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
     seconsd_to_start_auto_deepsleep = 200 
-    if automatic_deepsleep and current_voltage < max_battery_v and (current_time - start_time_for_automatic_deepsleep) >= seconsd_to_start_auto_deepsleep:
+    if automatic_deepsleep and not current_is_charging and (current_time - start_time_for_automatic_deepsleep) >= seconsd_to_start_auto_deepsleep:
         power_state = False
+    
+    ##############################################
+    # חייבים לאפס את זה כל שנייה מחדש כדי שנוכל להשוות את השנייה הקודמת לשנייה הנוכחית
+    # אחרי שקראנו ושמרנו את המתח הקודם, כעת מעדכנים את המשתנה הגלובלי במתח הנוכחי וזה משמש גם עבור דברים אחרים בתוכנה
+    last_voltage = current_voltage
+    # מעדכנים אחוזים רק אם זו הפעם הראשונה או במצב שהאחוזים השתנו מהקריאה הקודמת ביותר מ X אחוז
+    if not last_battery_percentage or abs(current_battery_percentage - last_battery_percentage) >= 2:
+        last_battery_percentage = current_battery_percentage
+    last_is_charging = current_is_charging
+    ##############################################
                  
     # אם כפתור הפעלת החישובים פועל אז מפעילים את המסך ואת הכוח ואת החישובים וחוזרים עליהם שוב ושוב
     if power_state:
@@ -1879,7 +1900,7 @@ def main_main():
             start_time_for_check_and_set_time = current_time
             
         # בהירות המסך היא חצי מהבהירות המקסימלית אם מחובר לחשמל ורבע אם מחובר לסוללה
-        duty_for_backligth = 500 if current_voltage > max_battery_v else 255
+        duty_for_backligth = 500 if current_is_charging else 255
         # הפעלת בהירות המסך המתאימה
         BACKLIGHT.duty(duty_for_backligth)
         
@@ -1909,7 +1930,8 @@ def main_main():
                 main_bme280()
                 time.sleep(1) # עדכון כל שניה
                 gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
-            except:
+            except Exception as e:
+                print("שגיאת BME280", e) # Errno 19] ENODEV זו שגיאה שאומרת שהחיישן לא מחובר
                 is_bme280_connected = False
         
         # אם BME280 לא מחובר אז התוכנה מתפקדת כשעון ההלכה
@@ -2081,5 +2103,3 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
-
-
