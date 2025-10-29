@@ -378,10 +378,10 @@ def get_timestamp_from_screen():
         
         while True:
             
-            # בדיקה אם עברו 60 שניות בלי פעילות
-            if time.time() - last_activity > 60:
+            # בדיקה אם עברו 20 שניות בלי פעילות
+            if time.time() - last_activity > 20:
                 tft.fill(0)
-                tft.write(FontHeb25, reverse("לא נעשתה פעילות במשך דקה"), 10, 60)
+                tft.write(FontHeb25, reverse("יציאה עקב חוסר פעילות"), 10, 60)
                 tft.show()
                 time.sleep(2)
                 return None# יציאה מהפונקציה לגמרי
@@ -1533,6 +1533,7 @@ def menu_settings_loop(only_key=None):
         {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
         {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.61, -6, -8.5], "suffix": "°"},
         {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10], "suffix": "°"},
+        #{"title": "בחר בהירות מסך", "key": "screen_brightness", "options": [100, 250, 500, 1000], "suffix": ""},
         {"title": "בחר מה להציג בשורה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks", "zmanim_with_clocks"], "suffix": ""},
     ]
     
@@ -1541,6 +1542,7 @@ def menu_settings_loop(only_key=None):
         "zmanim": reverse("זמנים"),
         "clocks": reverse("שעונים"),
         "zmanim_with_clocks": reverse("זמנים עם שעונים"),
+        "screen_brightness": reverse("בהירות מסך"),
     }
     
     if only_key is not None:
@@ -1562,12 +1564,10 @@ def menu_settings_loop(only_key=None):
         last_activity = time.time()  # זמן התחלה של המעקב
         while True:
             
-            # בדיקה אם עברו 60 שניות בלי פעילות
-            if time.time() - last_activity > 60:
-                print("לא נעשתה פעולה במשך דקה — יוצאים מהתפריט.")
+            # בדיקה אם עברו 20 שניות בלי פעילות
+            if time.time() - last_activity > 20:
                 tft.fill(0)
-                tft.write(FontHeb25, reverse("לא נעשתה פעולה במשך דקה"), 10, 60)
-                tft.write(FontHeb25, reverse("יוצאים מהתפריט..."), 40, 100)
+                tft.write(FontHeb25, reverse("יציאה עקב חוסר פעילות"), 10, 60)
                 tft.show()
                 time.sleep(2)
                 return  # יציאה מהפונקציה לגמרי
@@ -1629,7 +1629,7 @@ def show_about():
     tft.show()
     # המתנה ללחיצה ארוכה או שיעברו 10 שניות כדי לצאת מהפונקצייה
     while True:
-        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 10:
+        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 20:
             return
 
 # === פונקצייה להצגת ההגדרות הנוכחיות ===
@@ -1647,6 +1647,7 @@ def show_current_settings():
         "misheiacir_deg": "משיכיר",
         "hesberim_mode": "מצב תצוגה",
         "default_location_index": "מיקום ברירת מחדל",
+        "screen_brightness": reverse("בהירות מסך"),
     }
 
     modes_hebrew = {
@@ -1671,7 +1672,7 @@ def show_current_settings():
 
     # המתנה ללחיצה ארוכה או שתעבור דקה כדי לצאת מהפונקצייה
     while True:
-        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 60:
+        if handle_button_press(boot_button) == "long" or time.time() - last_activity > 20:
             return
 
 
