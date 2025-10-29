@@ -1298,7 +1298,7 @@ def main_halach_clock():
     # קביעה מה יודפס בשורת ההסברים: האם שעונים זמנים או הסברים. ולאחר מכן הדפסה למסך של מה שנבחר   
     hesberim_zmanim_clocks = settings_dict["hesberim_mode"]
     hesberim_zmanim_clocks_options_dict = {"zmanim": zmanim_string,"clocks": clocks_string,"zmanim_with_clocks": zmanim_with_clocks_string}
-    print_in_hesberim_line = hesberim_zmanim_clocks_options_dict.get(hesberim_zmanim_clocks, "hesberim_string") # ערך ברירת המחדל הוא הסברים 
+    print_in_hesberim_line = hesberim_zmanim_clocks_options_dict.get(hesberim_zmanim_clocks, hesberim_string) # ערך ברירת המחדל הוא הסברים 
     tft.write(FontHeb20, f"{print_in_hesberim_line}" ,center(print_in_hesberim_line, FontHeb20) , 123)  # כתיבה למסך
     
     # איזור תאריך לועזי ושעה רגילה והפרש מגריניץ
