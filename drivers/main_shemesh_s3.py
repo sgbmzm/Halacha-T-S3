@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "28/10/2025"
+VERSION = "29/10/2025"
 
 ######################################################################################################################
 
@@ -54,13 +54,6 @@ tft.init() # כך חייבים לעשות
 boot_button = Pin(0, Pin.IN, Pin.PULL_UP) # משמש בקוד לשינוי המיקומים ולקביעת מיקום ברירת מחדל
 button_14 = Pin(14, Pin.IN, Pin.PULL_UP) # משמש בקוד להכנסת המכשיר למצב שינה ולהתעוררות ולשליטה על הכוח
 
-
-# משתנה גלובלי חשוב מאוד ששומר את השאלה האם לעדכן את השעון החיצוני מהרשת
-# ברירת המחדל היא שלא
-ntp_update = False
-# אבל אם בשעת הדלקת המכשיר שזו שעת תחילת ריצת הקוד כפתור בוט לחוץ אז כן לעדכן
-#if boot_button.value() == 0:  # בודק אם הכפתור לחוץ בשעת הדלקת המכשיר
-#    ntp_update = True 
     
 # משתנה למעקב אחר מצב הכוח כלומר האם המכשיר כבוי או פועל
 # המשמעות של זה מגיעה לידי ביטוי בפונקצייה הראשית: main
@@ -319,101 +312,266 @@ def decimal_hours_to_seconds(decimal_hours):
 
 ######################################################################################################3
 
+# פונקצייה מאוד חשובה לקביעה כמה זמן לחצו על כפתור האם לחיצה ארוכה או קצרה
+def handle_button_press(specific_button):
+    start_time = time.ticks_ms()
+    # הלולאה הזו מתבצעת אם לוחים ברציפות בלי לעזוב
+    while specific_button.value() == 0:  # כל עוד הכפתור לחוץ
+        if time.ticks_diff(time.ticks_ms(), start_time) > 2000:  # לחיצה ארוכה מעל 2 שניות
+            return "long"
+    # מכאן והלאה מתבצע רק אחרי שעוזבים את הכפתור ואז מודדים כמה זמן היה לחוץ
+    if 100 < time.ticks_diff(time.ticks_ms(), start_time) < 1000: # לחיצה קצרה מתחת לשנייה אחת אבל מעל 100 מיקרו שניות כדי למנוע לחיצה כפולה
+        return "short"
+    return None  # במידה ולא זוהתה לחיצה
+
+######################################################################################################
+
+def get_timestamp_from_screen():
+    """מאפשר למשתמש להגדיר תאריך ושעה ידנית ולהחזיר חותמת זמן UTC או None במקרה של ביטול."""
+    
+    ###############################################################
+    # השבתת הפעילות הרגילה של כפתור 14 כי כאן צריך אותו לשימוש אחר.
+    button_14.irq(handler=None)
+    ##############################################################
+    
+    # הניסיון הוא רק כדי שבסוף נוכל לעשות finally ולהחזיר את כפתור 14 לפעולתו הרגילה
+    try: 
+        rtc_system = machine.RTC()
+        current = list(rtc_system.datetime())  # (year, month, day, weekday, hour, minute, second, subseconds)
+        date_parts = ["יום", "חודש", "שנה", "שעה", "דקה", "שנייה", "הפרש שעות מגריניץ", "אישור/ביטול"]
+        indices = [2, 1, 0, 4, 5, 6]
+        position = 0
+
+        MIN_YEAR = 2001
+        MAX_YEAR = 2100
+        local_offset = 3 if is_now_israel_DST() else 2
+        utc_offset = local_offset
+
+        pos_x_values = [10, 43, 76, 137, 170, 203, 240]  # X לשדה תאריך/שעה
+        y_line = 5          # Y לשורה הראשונה
+
+        ok_index = 0
+        ok_str_options = [reverse("אישור"), reverse("ביטול")]
+        
+        # כדי לדעת מתי לצאת כשיש חוסר פעילות 
+        last_activity = time.time()
+        
+        while True:
+            
+            # בדיקה אם עברו 60 שניות בלי פעילות
+            if time.time() - last_activity > 60:
+                tft.fill(0)
+                tft.write(FontHeb25, reverse("לא נעשתה פעילות במשך דקה"), 10, 60)
+                tft.show()
+                time.sleep(2)
+                return None# יציאה מהפונקציה לגמרי
+            
+            
+            utc_hour = (current[4] - utc_offset) % 24
+            ok_str = ok_str_options[ok_index]
+
+            # בניית המחרוזות להצגה
+            values_str = [
+                f"{current[2]:02d}/", f"{current[1]:02d}/", f"{current[0]}",
+                f"{current[4]:02d}:", f"{current[5]:02d}:", f"{current[6]:02d}",
+                f"utc{utc_offset:+03d}"
+            ]
+            utc_time_str = f"utc: {utc_hour:02d}:{current[5]:02d}:{current[6]:02d}"
+
+            # הצגת המסך
+            tft.fill(0)
+
+            # שורה ראשונה – תאריך ושעה
+            for i, val in enumerate(values_str):
+                bg_color = s3lcd.CYAN if i == position and position < 7 else s3lcd.BLACK
+                fg_color = s3lcd.BLACK if i == position and position < 7 else s3lcd.GREEN
+                tft.write(FontHeb25, val, pos_x_values[i], y_line, fg_color, bg_color)
+
+            # שורה לשדה – אישור/ביטול
+            bg_color_ok = s3lcd.CYAN if position == 7 else s3lcd.BLACK
+            fg_color_ok = s3lcd.BLACK if position == 7 else s3lcd.GREEN
+            tft.write(FontHeb25, ok_str, center(ok_str,FontHeb25), 55, fg_color_ok, bg_color_ok)
+
+            # הצגת השעה בגריניץ והשדה הנוכחי
+            tft.write(FontHeb20, utc_time_str, pos_x_values[3]-30, y_line+30, s3lcd.CYAN, s3lcd.BLACK)
+            tft.write(FontHeb20, reverse(f"שלב נוכחי: {date_parts[position]}"), center(reverse(f"שלב נוכחי: {date_parts[position]}"),FontHeb20), 80, s3lcd.YELLOW, s3lcd.BLACK)
+
+            # טיפים למשתמש
+            tft.write(FontHeb20, reverse("לחיצה קצרה משנה ערך"), 50, 110)
+            tft.write(FontHeb20, reverse("לחיצה ארוכה למעלה מקדמת שלב"), 20, 130)
+            tft.write(FontHeb20, reverse("לחיצה ארוכה למטה מחזירה שלב"), 20, 150)
+            tft.show()
+
+            # קריאת כפתורים
+            press_main = handle_button_press(boot_button)
+            press_down = handle_button_press(button_14)
+            
+            # אם לא נלחץ שום כפתור - דלג על המשך הלולאה
+            if not press_main and not press_down:
+                continue
+            
+            # אם מגיעים לכאן אז בטוח שנלחץ כפתור כלשהו ולכן דוחים את זמן היציאה האוטומטית
+            last_activity = time.time()
+
+            # לחיצה קצרה
+            if press_main == "short":
+                if position < 6:
+                    i = indices[position]
+                    if position == 0:
+                        current[i] = (current[i] % 31) + 1
+                    elif position == 1:
+                        current[i] = (current[i] % 12) + 1
+                    elif position == 2:
+                        current[i] = (current[i] + 1) if current[i] < MAX_YEAR else MIN_YEAR
+                    elif position == 3:
+                        current[i] = (current[i] + 1) % 24
+                    elif position == 4:
+                        current[i] = (current[i] + 1) % 60
+                    elif position == 5:
+                        current[i] = (current[i] + 1) % 60
+                elif position == 6:
+                    utc_offset += 1
+                    if utc_offset > 12:
+                        utc_offset = -12
+                elif position == 7:
+                    ok_index = 1 - ok_index  # החלפה בין אישור/ביטול
+
+            elif press_down == "short":
+                if position < 6:
+                    i = indices[position]
+                    if position == 0:
+                        current[i] = 31 if current[i] == 1 else current[i] - 1
+                    elif position == 1:
+                        current[i] = 12 if current[i] == 1 else current[i] - 1
+                    elif position == 2:
+                        current[i] = current[i] - 1 if current[i] > MIN_YEAR else MAX_YEAR
+                    elif position == 3:
+                        current[i] = (current[i] - 1) % 24
+                    elif position == 4:
+                        current[i] = (current[i] - 1) % 60
+                    elif position == 5:
+                        current[i] = (current[i] - 1) % 60
+                elif position == 6:
+                    utc_offset -= 1
+                    if utc_offset < -12:
+                        utc_offset = 12
+                elif position == 7:
+                    ok_index = 1 - ok_index  # החלפה בין אישור/ביטול
+
+            # לחיצה ארוכה
+            elif press_main == "long":
+                if position == 7:
+                    if ok_index == 0:  # אישור
+                        rtc_hour_utc = (current[4] - utc_offset) % 24
+                        time_tuple = (current[0], current[1], current[2], rtc_hour_utc, current[5], current[6], 0, 0)  
+                        return time.mktime(time_tuple)
+                    else:  # ביטול
+                        return None
+                else:
+                    position += 1
+                    if position > 7:
+                        position = 7
+
+            elif press_down == "long":
+                position -= 1
+                if position < 0:
+                    position = 0
+
+            time.sleep(0.1)
+            
+    finally:
+        # הפעלת ה־IRQ מחדש ללא קשר לדרך היציאה
+        button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
+
+##############################################################
+        
 # מונקצייה שמנסה להתחבר לווייפי ולקבל את הזמן הנוכחי בגריניץ כלומר ב UTC-0
-def get_ntp_time():
+# אם הצליחה היא מחזירה חותמת זמן. אם לא נמצאו רשתות פתוחות מחזירה False. ואם נמצאו אך לא הצליחה לקבל זמן מחזירה None
+def get_ntp_timestamp():
     """עדכון השעה משרת NTP עם ניסיון לרשתות נוספות במקרה של כישלון, כולל כיבוי Wi-Fi בסוף."""
     wlan = network.WLAN(network.STA_IF)
     wlan.active(False) # חייבים קודם לכבות ואחר כך להדליק
     wlan.active(True)  # הפעלת ה-WiFi
 
-    try:
-        networks = wlan.scan()  # סריקת רשתות זמינות
-        
-        open_networks = [net for net in networks if net[4] == 0]  # מסנן רק רשתות פתוחות כלומר שהן ללא סיסמה
-        
-        # אם אין רשתות פתוחות מפסיקים את הניסיון
-        if not open_networks:
-            return "לא נמצאו רשתות פתוחות!"
-        
-        for net in open_networks:
-            
-            ###########################
-            # זה נועד למנוע שגיאת: [Errno 116] ETIMEDOUT
-            # כיבוי והדלקה מחדש של הוויפי אחרת זה לא תמיד מתחבר והמתנה שתי שניות כדי שהחיבור יתייצב
-            wlan.active(False)
-            wlan.active(True)
-            time.sleep(2)
-            ###########################
-            
-            ssid = net[0].decode()
-            print(f"ניסיון חיבור ל- {ssid}...")
-
-            #wlan.disconnect()  # ניתוק מכל רשת קודמת
-            wlan.connect(ssid)
-            time.sleep(2)
-
-            # המתנה לחיבור עד 10 שניות
-            for _ in range(10):
-                if wlan.isconnected():
-                    print(f"חובר בהצלחה לרשת {ssid}!")
-                    print("כתובת IP:", wlan.ifconfig()[0])
-                    break
-                time.sleep(1)
-
-            if wlan.isconnected():
-                try:
-                    # ניסיון לקבלת זמן משרת NTP
-                    ntptime.host = "pool.ntp.org"
-                    ntptime.timeout = 1
-                    # קבלת הזמן מהשרת בפורמט של חותמת זמן. הזמן המתקבל הוא בשעון גריניץ כלומר UTC-0
-                    ntp_timestamp_utc = ntptime.time()
-                    # המרת הזמן הנוכחי בגריניץ מחותמת זמן לפורמט של תאריך ושעה
-                    ntp_localtime = utime.localtime(ntp_timestamp_utc)
-                    
-                    print("השעה (בגריניץ) התקבלה בהצלחה!", ntp_localtime)
-                    return ntp_localtime  # מחזיר את הזמן ומכבה את ה-WiFi (נכבה תמיד ב-finally)
-                
-                except Exception as ntp_error:
-                    print(f"שגיאה בקבלת הזמן מהרשת {ssid}: {ntp_error}")
-                    wlan.disconnect()  # ניתוק בלבד, ננסה רשת אחרת
-
-        raise Exception("כשלון בקבלת הזמן משרת בכל רשת")
-
-    except Exception as error:
-        return f"{str(error)}"
-
-    finally:
+    # סריקת רשתות זמינות
+    networks = wlan.scan() 
+    # מסנן רק רשתות פתוחות כלומר שהן ללא סיסמה
+    open_networks = [net for net in networks if net[4] == 0]
+    
+    # אם אין רשתות פתוחות מפסיקים את הניסיון ומחזירים פאלס
+    if not open_networks:
         wlan.active(False)  # כיבוי ה-WiFi תמיד בסוף, בין אם הצלחנו או נכשלנו
+        return False
+    
+    # מנסים להתחבר לכל אחת מהרשתות הפתוחות שנמצאו
+    for net in open_networks:    
+        ###########################
+        # זה נועד למנוע שגיאת: [Errno 116] ETIMEDOUT
+        # כיבוי והדלקה מחדש של הוויפי אחרת זה לא תמיד מתחבר והמתנה שתי שניות כדי שהחיבור יתייצב
+       # wlan.active(False)
+        #wlan.active(True)
+        #time.sleep(2)
+        ###########################
+        ssid = net[0].decode()
+        print(f"ניסיון חיבור ל- {ssid}...")
+        #wlan.disconnect()  # ניתוק מכל רשת קודמת
+        wlan.connect(ssid)
+        time.sleep(2)
 
+        # המתנה לחיבור עד 10 שניות
+        for _ in range(10):
+            if wlan.isconnected():
+                print(f"חובר בהצלחה לרשת {ssid}!")
+                print("כתובת IP:", wlan.ifconfig()[0])
+                break
+            time.sleep(1)
+        
+        # אם הצליחו להתחבר לאחת מהרשתות הפתוחות
+        if wlan.isconnected():
+            try:
+                # ניסיון לקבלת זמן משרת NTP
+                ntptime.host = "pool.ntp.org"
+                ntptime.timeout = 1
+                # קבלת הזמן מהשרת בפורמט של חותמת זמן. הזמן המתקבל הוא בשעון גריניץ כלומר UTC-0
+                ntp_timestamp_utc = ntptime.time()
+                # כיבוי ה-WiFi תמיד בסוף, בין אם הצלחנו או נכשלנו
+                wlan.active(False)
+                return ntp_timestamp_utc 
+            
+            except Exception as ntp_error:
+                print(f"שגיאה בקבלת הזמן מהרשת {ssid}: {ntp_error}")
+                wlan.disconnect()  # ניתוק בלבד, ננסה רשת אחרת
+    
+    wlan.active(False)  # כיבוי ה-WiFi תמיד בסוף, בין אם הצלחנו או נכשלנו
+    # במקרה שהצליח להתחבר לרשתות אבל אף אחד מהם לא החזירה זמן ntp מחזירים None
+    return None
 
-#######################################################################################3
+#########################################################################################################
 
-time_source_dic = {1: "שעה משעון חיצוני DS3231", 2: "שעה משרת NTP", 3: "שעה משעון פנימי שכנראה לא מדוייק", 4: "זמן שרירותי"}
-
-# משתנה גלובלי חשוב מאוד ששומר מידע איזה סוג זמן משמש בפועל בתוכנה
-# ראו פירוט במשתנה: time_type_dic
+# משתנה ששומר מידע על המקור שממנו שאבנו את הזמן
 time_source = None
 
 # פונקצייה שמטפלת בכל הגדרת הזמן, ועדכונו אם צריך, גם בשעון הפנימי וגם בשעון החיצוני
-# היא באה במקום הפונקצייה שהייתה קיימת פעם ונקראה בשם: sync_rtc_with_ds3231()
 # חשוב מאוד! הפונקצייה מגדירה בשעון החיצוני והפנימי את הזמן בשעון גריניץ כלומר איזור זמן UTC-0
-def check_and_set_time():
+def check_and_set_time(Force_update = False):
     
-    # הצהרה על משתנה גלובלי שקובע האם יש לעדכן את הזמן מהרשת
-    global ntp_update
-    
-    # הצהרה על משתנה גלובלי ששומר מידע איזה סוג סמן משמש בפועל
-    # ראו פירוט במשתנה: time_type_dic
     global time_source
-
-    # קריאת הזמן מהשעון הפנימי של הבקר
+    # הגדרת השעון הפנימי של הבקר
     rtc_system = machine.RTC()
+    ##########################################
+    # דבר ראשון מעדכנים זמן שרירותי בשעון הפנימי כדי שמה שלא יקרה השעון הפנימי יהיה עדכני ולא יהיה מעודכן לאפוך שלו בשנת 2000 או 1970
+    # מקור הזמן נשאר עדיין None ולכן יודפסו סימני קריאה לייד הזמן אם הוא לא יישתנה
+    if rtc_system.datetime()[0] <= 2000:
+        manual_time = (2001, 5, 20, get_rtc_weekday(6), 16, 39, 35, 20)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+        rtc_system.datetime(manual_time)
+    ##########################################
     
     # בדיקה האם DS3231 מחובר ולאיפה מחובר באמצעות פונקצייה שהוגדרה לעיל
     is_ds3231_connected, ds3231_exit, ds3231_exit_name = check_i2c_device(ds3231_bitname)
     
-    # אם DS3231 מחובר, ולא הוגדר בתחילה שרוצים לעדכן שעון מהרשת
-    if is_ds3231_connected and not ntp_update:
+    ##########################################
+    # אם DS3231 מחובר, ולא הוגדר בתחילה שרוצים לכפות עדכון
+    if is_ds3231_connected and not Force_update:
         
         # הגדרת DS3231
         rtc_ds3231 = DS3231(ds3231_exit)
@@ -422,104 +580,80 @@ def check_and_set_time():
         ds3231_time = rtc_ds3231.datetime()
         
         # אם DS3231 מוגדר נכון ולא מאופס לשנת 2000 אז מעדכנים את הזמן שבו לתוך השעון הפנימי ויוצאים מהפונקצייה
-        if ds3231_time[0] > 2022: 
+        if ds3231_time[0] > 2000: 
             rtc_system.datetime(ds3231_time)
             print("הזמן עודכן מתוך DS3231: ", ds3231_time)
-            time_source = 1
+            time_source = "DS3231"
             return
+    ####################################################
         
     # מכאן והלאה מעדכנים שעונים משרת NTP וזה דרוש בכל המקרים מלבד המקרה שכבר טופל לעיל שהשעון החיצוני מחובר ולא רוצים לעדכן 
     # הדפסה למסך
     tft.fill(0) # מחיקת המסך
-    #tft.write(FontHeb20,f'{reverse("השעון אינו מכוון")}',0,35)
-    tft.write(FontHeb25,f'{reverse("בתהליך עדכון הזמן מהרשת...")}',5,45)
-    tft.write(FontHeb25,f'{reverse("מחפש בקרבתך רשת ללא סיסמה")}',2,75)
+    tft.write(FontHeb25,f'{reverse("ניסיון קבלת זמן מהרשת...")}',5,15)
     tft.show() # כדי להציג את הנתונים על המסך
-    time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
                 
-    # קבלת זמן ntp מהשרת ואם יש שגיאה המשתנה הזה יכיל את השגיאה
-    ntp_time = get_ntp_time() # אם אין שגיאה זה מחזיר את הזמן הנוכחי בשעון ישראל
+    # ניסיון קבלת זמן ntp מהשרת באמצעות פונקצייה
+    # אם הצליחה היא מחזירה חותמת זמן. אם לא נמצאו רשתות פתוחות מחזירה False. ואם נמצאו אך לא הצליחה לקבל זמן מחזירה None
+    ntp_timestamp_utc = get_ntp_timestamp()
     
+    # אם לא הצלחנו לקבל זמן רשת
+    if not ntp_timestamp_utc:     
+        if ntp_timestamp_utc == None:
+            tft.write(FontHeb25,f'{reverse("הרשת לא מחזירה זמן")}',5,45)
+        elif ntp_timestamp_utc == False:
+            tft.write(FontHeb25,f'{reverse("לא נמצאה רשת פתוחה")}',5,45)
+        #################################################################
+        tft.write(FontHeb25,f'{reverse("יש להגדיר זמן ידנית")}',5,75)
+        tft.show() # כדי להציג את הנתונים על המסך
+        time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה        
+        # מנסים לקבל זמן ידני מהמשתמש ולהציג לו את מסך בחירת הזמן
+        target_timestamp_utc = get_timestamp_from_screen()
+        # אם מחזיר ערך זה אומר שהמשתמש אישר את הזמן ממסך הגדרת הזמן
+        if target_timestamp_utc:
+            tft.fill(0) # מחיקת המסך 
+            time_source = reverse("מסך")
+        # בכל מקרה אחר המשתמש ביטל את הגדרת הזמן מהמסך אז מחזיר None ואין מה להמשיך הלאה
+        else:
+            return
+        ##################################################################
     
-    # אם DS3231 מחובר אז על הדרך מעדכנים גם בו את השעה שהתקבלה מהרשת
-    if is_ds3231_connected:
-        try:
+    else:
+        tft.write(FontHeb25,f'{reverse("הזמן התקבל בהצלחה מהרשת")}',5,45)
+        target_timestamp_utc = ntp_timestamp_utc
+        time_source = "NTP"
+        
+    # אם מוגדר חותמת זמן מהרשת או ממקור ידני
+    if target_timestamp_utc:
+        
+        # המרת הזמן הנוכחי בגריניץ מחותמת זמן לפורמט של תאריך ושעה
+        year, month, day, hour, minute, second, week_day, year_day = utime.localtime(target_timestamp_utc)
+        
+        # אם מחובר שעון חיצוני ds3231
+        if is_ds3231_connected:
+            
             # הגדרת DS3231
             rtc_ds3231 = DS3231(ds3231_exit)
-            year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
             # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
             time_for_ds3231 = (year, month, day, hour, minute, second, get_normal_weekday(week_day))
-            print("השעה בשעון החיצוני לפני העדכון", rtc_ds3231.datetime())
             # עדכון הזמן ב-DS3231
             rtc_ds3231.datetime(time_for_ds3231)
-            print("DS3231 עודכן בהצלחה מהרשת. השעה לאחר העדכון היא:", rtc_ds3231.datetime())
-            tft.fill(0) # מחיקת המסך
-            tft.write(FontHeb25,f'{reverse("עודכן בהצלחה מהרשת")} DS3231',10,50)
-            tft.show()
-            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-        except Exception as error:
-            tft.fill(0) # מחיקת המסך
-            tft.write(FontHeb25,f'{reverse("כשלון בעדכון מהרשת")} DS3231',10,50)
-            print(error)
-            tft.write(FontHeb20,f'{error}',0,70)
-            tft.show()
-            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-        
-           
-    #ניסיון לעדכן את השעון הפנימי מתוך שרת NTP
-    try:   
-        # קריאת זמן המערכת של הבקר שזה הזמן המדוייק של המחשב רק כאשר הבקר מחובר למחשב
-        year, month, day, hour, minute, second, week_day, year_day = ntp_time # זה מחזיר את הזמן הנוכחי בשעון ישראל
-        time_for_rtc_system = (year, month, day, get_rtc_weekday(week_day), hour, minute, second, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
-        rtc_system.datetime(time_for_rtc_system) # זה מעדכן את השעון הפנימי בזמן הנוכחי בשעון ישראל
-        time_source = 2       
-        print("זמן שרת עודכן בהצלחה. השעה לאחר העדכון היא", rtc_system.datetime())
-        tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb25,f'{reverse("הזמן עודכן בהצלחה מהרשת")}',10,70)
-        tft.show()
-        time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-    
-    # במקרה של שגיאה בעדכון הזמן מהשרת
-    except Exception as error:
-        
-        tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb25,f'{reverse("שגיאה בעדכון הזמן מהרשת")}',10,20)
-        tft.write(FontHeb20,f'{str(error)}',0,50)
-        tft.write(FontHeb20,f'{reverse(ntp_time)}',20,70)
-        tft.show()
-        time.sleep(5) # כדי שהמשתמש יוכל לראות מה יש במסך לפני שהכיתוב נעלם
-        print(f"שגיאה בעדכון שעון חיצוני מהשרת: {str(error)} פונקציית אנטיפי מחזירה {ntp_time}")
-        
-        # אם יש שגיאה בעדכון מהשרת וגם ds3231 לא מחובר או לא עדכני בעליל אז מוכרחים להגדיר זמן שרירותי ידני כדי שהתוכנה תעבוד
-        # במקרה כזה הוספתי להדפסת השעה סימני קריאה כדי שידעו שהשעה הזו לא נכונה
-        
-        # אם כרגע בשעון הפנימי מעודכן זמן שבטוח לא טוב כי הוא מלפני שנת 2025 אז מעדכנים זמן שרירותי
-        if rtc_system.datetime()[0] < 2025:
-            print("אין שעון מחובר, או שהשעון לא עדכני כלל, וגם אין רשת ולכן מעדכנים זמן ידני שרירותי")
-            tft.fill(0) # מחיקת המסך
-            if is_ds3231_connected:
-                tft.write(FontHeb25,f'{reverse("השעון לא עדכני, ואין רשת")}',5,20)
-            else:
-                tft.write(FontHeb25,f'{reverse("אין שעון מחובר, וגם אין רשת")}',5,20)
-            tft.write(FontHeb25,f'{reverse("לכן מגדירים זמן שרירותי שגוי!")}',5,50)
-            tft.show()
-            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-            manual_time = (2020, 5, 20, get_rtc_weekday(6), 16, 39, 35, 20)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
-            rtc_system.datetime(manual_time)
-            time_source = 3
+            #  קריאת הזמן המעודכן מ-DS3231
+            ds3231_time = rtc_ds3231.datetime()
+            # הגדרת הזמן המעודכן לתוך השעון הפנימי
+            rtc_system.datetime(ds3231_time)
+            print("ds3231_time עודכן", rtc_ds3231.datetime())
         else:
-            print("אין שעון מחובר או שהוא לא עדכני בעליל וגם אין רשת אבל זמן המערכת אולי מדוייק ולכן לא משנים אותו אבל זה כנראה לא מדוייק")
-            tft.fill(0) # מחיקת המסך
-            if is_ds3231_connected:
-                tft.write(FontHeb25,f'{reverse("השעון לא עדכני, ואין רשת")}',5,20)
-            else:
-                tft.write(FontHeb25,f'{reverse("אין שעון מחובר, וגם אין רשת")}',5,20)
-            tft.write(FontHeb25,f'{reverse("הזמן נלקח מהשעון הפנימי")}',5,50)
-            tft.write(FontHeb25,f'{reverse("ייתכן שהזמן אינו נכון!")}',5,80)
-            tft.show()
-            time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-            time_source = 4 
-
+            # חייבים למפות מחדש את סדר הנתונים וצורתם כי כל ספרייה משתמשת בסדר וצורה אחרים קצת
+            time_for_rtc_system = (year, month, day, get_rtc_weekday(week_day), hour, minute, second, 0)  # (שנה, חודש, יום, יום בשבוע, שעה, דקות, שניות, תת-שניות)
+            # עדכון רק של השעון הפנימי מזמן הרשת
+            rtc_system.datetime(time_for_rtc_system)
+            
+    # הדפסה למסך
+    tft.write(FontHeb25,f'{reverse("הזמן הוגדר בהצלחה מ")}: {time_source}',5,75)
+    tft.show() # כדי להציג את הנתונים על המסך
+    time.sleep(2) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+        
 
 
 # פעולה חשובה מאוד!!! בתחילת פעילות התוכנה: קריאה לפנקצייה שמטפלת בהגדרת ועדכון הזמן
@@ -1118,7 +1252,7 @@ def main_halach_clock():
     # מהשקיעה עד 12 בלילה מוסיפים את המילה ליל כי היום בשבוע והתאריך העברי מקבלים לתאריך הלועזי של מחר
     leil_string = reverse("ליל:") if heb_date_is_next_greg_date else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_to_print = f'   {"!!" if time_source in [3,4] else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)} {leil_string}'
+    heb_date_to_print = f'   {"!!" if not time_source else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)} {leil_string}'
     utc_offset_string = 'utc+00' if location_offset_hours == 0 else f'utc+{location_offset_hours:02}' if location_offset_hours >0 else f'utc-{abs(location_offset_hours):02}'
     coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}'
     
@@ -1376,20 +1510,6 @@ start_time_for_automatic_deepsleep = t_time
 
 #########################################################################################################
 
-# פונקצייה מאוד חשובה לקביעה כמה זמן לחצו על כפתור האם לחיצה ארוכה או קצרה
-def handle_button_press(specific_button):
-    start_time = time.ticks_ms()
-    # הלולאה הזו מתבצעת אם לוחים ברציפות בלי לעזוב
-    while specific_button.value() == 0:  # כל עוד הכפתור לחוץ
-        if time.ticks_diff(time.ticks_ms(), start_time) > 2000:  # לחיצה ארוכה מעל 2 שניות
-            return "long"
-    # מכאן והלאה מתבצע רק אחרי שעוזבים את הכפתור ואז מודדים כמה זמן היה לחוץ
-    if 100 < time.ticks_diff(time.ticks_ms(), start_time) < 1000: # לחיצה קצרה מתחת לשנייה אחת אבל מעל 100 מיקרו שניות כדי למנוע לחיצה כפולה
-        return "short"
-    return None  # במידה ולא זוהתה לחיצה
-
-######################################################################################################
-
 # הפעלה של התפריט
 def menu_settings_loop(only_key=None):
 
@@ -1545,7 +1665,7 @@ def main_menu():
     # אפשרויות התפריט הראשי
     main_menu = [
         {"title": "הגדרת מיקום נוכחי כברירת מחדל", "action": "update_location"},
-        {"title": "עדכון הזמן )מ-רשת ללא סיסמה(", "action": "update_time"},
+        {"title": "עדכון הזמן", "action": "update_time"},
         {"title": "הצגת הגדרות נוכחיות", "action": "show_settings"},
         {"title": "הגדרת שורת ההסברים", "action": "update_hesberim_mode"},
         {"title": "בחירת והגדרת כל ההגדרות", "action": "update_settings"}, 
@@ -1586,8 +1706,7 @@ def main_menu():
             if selected["action"] == "update_location":
                 save_default_location(location_index)
             if selected["action"] == "update_time":
-                ntp_update = True
-                check_and_set_time()
+                check_and_set_time(Force_update = True)
             elif selected["action"] == "update_settings":
                 menu_settings_loop()
             elif selected["action"] == "update_hesberim_mode":
@@ -1597,8 +1716,7 @@ def main_menu():
             elif selected["action"] == "show_about":
                 show_about()
             elif selected["action"] == "return":
-                return    
-    
+                return
 
 #######################################################################################################
 
@@ -1640,6 +1758,52 @@ boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_boot_button)
 
 
 ##############################################################################################################################3
+def entering_sleep_mode():
+
+    # פונקצייה נורא נורא נורא חשובה לכיבוי כל הפינים לפני שנכנסים למצב שינה עמוקה
+    # קריטי במיוחד השורה הראשונה שזה הפינים של המסך שאם לא מכבים אותם יש מריחות על המסך אחרי מצב שינה
+    # הפין היחיד שבכוונה לא מכבים אותו הוא פין 14 ששולט על ההדלקה מחדש כלומר יציאה מהשינה העמוקה
+    def set_pins_off():    
+        #  רשימת הפינים לכיבוי
+        pins = [
+            38, 39, 40, 41, 42, 45, 46, 47, 48,  # פיני ה-LCD
+            15,  # פין הפעלת מתח
+            5, 6, 7, 8, 9  # פינים נוספים של ה-LCD
+        ]
+        
+        pin_objects = [Pin(p, Pin.OUT) for p in pins]  # יצירת אובייקטים לכל פין
+        for pin in pin_objects:
+            pin.value(0)  # כיבוי כל הפינים
+        print("all_pins_off")
+
+
+    # הדפסה למסך
+    tft.fill(0) # מחיקת המסך
+    tft.write(FontHeb25,f'{reverse("כניסה למצב שינה...")}',30,20) # דווקא בגובה של שורת התאריך כדי שאם יהיו מריחות הם יסתירו רק את שורה זו
+    tft.show() # כדי להציג את הנתונים על המסך
+    time.sleep(0.5) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+    tft.fill(0) # מחיקת המסך
+    tft.show() # כדי להציג את הנתונים על המסך
+    time.sleep(0.1) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
+    
+    # התנתקות מהגדרת המסך שבוצעה בתחילת הקוד
+    # זה גם מכבה את שלושת הפינים של המסך שהם התאורה האחורית הכוח וה RD כאשר מוגדר טרו
+    tft_config.deinit(tft, display_off=True)
+    
+    # ב S3 ליליגו עובד רק על כפתור 14 ולא על כפתור בוט שהוא אפס
+    wake1 = Pin(14, Pin.IN, Pin.PULL_UP)
+    
+    # הגדרת כפתור ההשכמה מהשינה העמוקה
+    esp32.wake_on_ext0(pin = wake1, level = esp32.WAKEUP_ALL_LOW)
+
+    # קריאה לפונקצייה החשובה מאוד שהגדרתי לעיל
+    set_pins_off() # חשוב ביותר כיבוי כל הפינים למעט פין 14 של כפתור ההתעוררות לפני הכניסה למצב שינה כדי למנוע בעיות מסך ובזבוז בטרייה
+    
+    # מצב שינה. היציאה ממצב שינה מתבצעת באמצעות לחיצה על הכפתור שמעיר את המכשיר וקורא שוב לקובץ מיין שקורא שוב לקובץ מיין שמש
+    machine.deepsleep() # לא מתעורר כל עוד שלא לוחצים על כפתור 14
+#############################################################################    
+
+
 # פונקצייה נורא חשובה שעושה כמה פעולות קריטיות בלחיצה על כפתור ההפעלה/כיבוי
 # 1: מפעילה או מכבה 2: מחזירה למיקום ברירת מחדל. 3: מאפסת את המשתנה של הזמן שלפיו נקבע מתי יכבה המסך מעצמו
 def toggle_power(pin):
@@ -1666,21 +1830,6 @@ button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 
 ##################################################################################################################
-# פונקצייה נורא נורא נורא חשובה לכיבוי כל הפינים לפני שנכנסים למצב שינה עמוקה
-# קריטי במיוחד השורה הראשונה שזה הפינים של המסך שאם לא מכבים אותם יש מריחות על המסך אחרי מצב שינה
-# הפין היחיד שבכוונה לא מכבים אותו הוא פין 14 ששולט על ההדלקה מחדש כלומר יציאה מהשינה העמוקה
-def set_pins_off():    
-    #  רשימת הפינים לכיבוי
-    pins = [
-        38, 39, 40, 41, 42, 45, 46, 47, 48,  # פיני ה-LCD
-        15,  # פין הפעלת מתח
-        5, 6, 7, 8, 9  # פינים נוספים של ה-LCD
-    ]
-    
-    pin_objects = [Pin(p, Pin.OUT) for p in pins]  # יצירת אובייקטים לכל פין
-    for pin in pin_objects:
-        pin.value(0)  # כיבוי כל הפינים
-    print("all_pins_off")
 #################################################################################################33
 
 # הפונקצייה הראשית שמפעילה את כל החלקים יחד
@@ -1772,32 +1921,8 @@ def main_main():
             
     # אם הכוח לא פועל אז יש לכבות הכל
     else:
-      
-        # הדפסה למסך
-        tft.fill(0) # מחיקת המסך
-        tft.write(FontHeb25,f'{reverse("כניסה למצב שינה...")}',30,20) # דווקא בגובה של שורת התאריך כדי שאם יהיו מריחות הם יסתירו רק את שורה זו
-        tft.show() # כדי להציג את הנתונים על המסך
-        time.sleep(0.5) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-        tft.fill(0) # מחיקת המסך
-        tft.show() # כדי להציג את הנתונים על המסך
-        time.sleep(0.1) # השהייה כדי לראות את ההודעה לפני שהמסך ייכבה
-        
-        # התנתקות מהגדרת המסך שבוצעה בתחילת הקוד
-        # זה גם מכבה את שלושת הפינים של המסך שהם התאורה האחורית הכוח וה RD כאשר מוגדר טרו
-        tft_config.deinit(tft, display_off=True)
-        
-        # ב S3 ליליגו עובד רק על כפתור 14 ולא על כפתור בוט שהוא אפס
-        wake1 = Pin(14, Pin.IN, Pin.PULL_UP)
-        
-        # הגדרת כפתור ההשכמה מהשינה העמוקה
-        esp32.wake_on_ext0(pin = wake1, level = esp32.WAKEUP_ALL_LOW)
-
-        # קריאה לפונקצייה החשובה מאוד שהגדרתי לעיל
-        set_pins_off() # חשוב ביותר כיבוי כל הפינים למעט פין 14 של כפתור ההתעוררות לפני הכניסה למצב שינה כדי למנוע בעיות מסך ובזבוז בטרייה
-        
-        # מצב שינה. היציאה ממצב שינה מתבצעת באמצעות לחיצה על הכפתור שמעיר את המכשיר וקורא שוב לקובץ מיין שקורא שוב לקובץ מיין שמש
-        machine.deepsleep() # לא מתעורר כל עוד שלא לוחצים על כפתור 14
-        
+        # כניסה למצב שינה
+        entering_sleep_mode()
 
 
 
