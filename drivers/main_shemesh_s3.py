@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "30/10/2025"
+VERSION = "31/10/2025"
 
 ######################################################################################################################
 
@@ -328,6 +328,17 @@ def decimal_hours_to_seconds(decimal_hours):
     total_seconds = hours * 3600 + minutes * 60 + seconds
     return total_seconds
 
+#################################################################################################
+
+# חישוב מה מרכז המסך כדי למרכז את הטקסט במרכז המסך
+# עדיין יש בעיות קטנות שאולי נגרמות מכך שיש אותיות צרות יותר מ MAX_WIDTH אבל אין מה לעשות כרגע
+# בינתיים זה הכי טוב שהגעתי אליו
+def center(text, font):
+    # הגדרת הפיקסל שבמרכז המסך
+    tft_pixel_center = 160 # tft.width() // 2
+    # הגדרת הפיקסל שבמרכז הטקסט
+    text_pixel_center = len(text) // 2 * font.MAX_WIDTH // 2 # כלומר הרוחב בפיקסלים של חצי מהטקסט
+    return tft_pixel_center - text_pixel_center # זה אומר כמה ימינה ממרכז המסך צריך להתחיל את ההדפסה כדי שמרכז ההדפסה יהיה במרכז המסך
 
 
 ######################################################################################################3
@@ -343,6 +354,31 @@ def handle_button_press(specific_button):
     if 100 < time.ticks_diff(time.ticks_ms(), start_time) < 1000: # לחיצה קצרה מתחת לשנייה אחת אבל מעל 100 מיקרו שניות כדי למנוע לחיצה כפולה
         return "short"
     return None  # במידה ולא זוהתה לחיצה
+
+
+# פונקצייה נורא חשובה שעושה כמה פעולות קריטיות בלחיצה על כפתור ההפעלה/כיבוי
+# 1: מפעילה או מכבה 2: מחזירה למיקום ברירת מחדל. 3: מאפסת את המשתנה של הזמן שלפיו נקבע מתי יכבה המסך מעצמו
+def toggle_power(pin):
+    
+    button_14.irq(handler=None)  # השבתת ה-IRQ כדי למנוע הפעלה כפולה של פונקצייה זו
+    
+    # המשתנה הגלובלי ששולט על האם לכבות או להדליק
+    global power_state
+    
+    # הפיכת המצב גורמת להדלקה או כיבוי שמתבצעת בפועל בפונקצייה הראשית מיין-מיין
+    power_state = not power_state 
+    #  תזכורת שפעם שלא הלכנו לשינה עמוקה עשיתי כאן import main וזה התחיל הכל מהתחלה
+
+    # המתנה כדי למנוע לחיצה כפולה
+    while button_14.value() == 0:  # ממתין שהכפתור ישתחרר
+        time.sleep_ms(50)
+    
+    button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)  # הפעלת ה-IRQ מחדש לאחר שסיימנו את הפעולה של הפונקצייה
+            
+
+# חיבור הכפתור לפונקציה הנל. לחיצה על הכפתור קוראת לפונקצייה שמעדכנת את משתנה הכוח
+# כרגע מתבצע באמצעות כפתור בוט אבל אפשר גם באמצעות הכפתור השני
+button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 ######################################################################################################
 
@@ -851,17 +887,6 @@ locations = [
 
 
 
-# חישוב מה מרכז המסך כדי למרכז את הטקסט במרכז המסך
-# עדיין יש בעיות קטנות שאולי נגרמות מכך שיש אותיות צרות יותר מ MAX_WIDTH אבל אין מה לעשות כרגע
-# בינתיים זה הכי טוב שהגעתי אליו
-def center(text, font):
-    # הגדרת הפיקסל שבמרכז המסך
-    tft_pixel_center = 160 # tft.width() // 2
-    # הגדרת הפיקסל שבמרכז הטקסט
-    text_pixel_center = len(text) // 2 * font.MAX_WIDTH // 2 # כלומר הרוחב בפיקסלים של חצי מהטקסט
-    return tft_pixel_center - text_pixel_center # זה אומר כמה ימינה ממרכז המסך צריך להתחיל את ההדפסה כדי שמרכז ההדפסה יהיה במרכז המסך
-
-
 #  ההסברים מורכבים משני חלקים כל אחד: הסבר וערך. ההסבר עובר בסוף רוורס ולכן אם יש בו מספרים חייבים לעשות להם רוורס כאן כדי שהרוורס הסופי יישר אותם 
 hesberim = [
     
@@ -953,12 +978,14 @@ settings_dict = {
     "default_location_index": 26, # מה מיקום ברירת המחדל שמוגדר. כרגע 26 זה ירושלים.
 }
 
+# שם ונתיב לקובץ ההגדרות של שעון ההלכה. חשוב מאוד לכל הקוד
+settings_file_path = "halacha_clock/hw_settings.json"
 
+# פונקצייה מאוד חשובה לטעינת כל ההגדרות של שעון ההלכה מתוך קובץ ההגדרות
 def load_sesings_dict_from_file():
-    global settings_dict
+    global settings_dict, settings_file_path
     try:
-        settings_path = "settings.json"
-        with open(settings_path, "r") as f:
+        with open(settings_file_path, "r") as f:
             loaded_settings = ujson.load(f)
             # עדכון ההגדרות הקיימות עם הערכים מהקובץ כך שלא מאבדים ערכים שלא נמצאים בקובץ
             settings_dict.update(loaded_settings)
@@ -968,9 +995,34 @@ def load_sesings_dict_from_file():
     except Exception as e:
         print(f"שגיאה בטעינת הקובץ: {e}")
 
-load_sesings_dict_from_file() # פעם אחת בתחילת הקוד
+load_sesings_dict_from_file() # טעינת ההגרות פעם אחת בתחילת הקוד
+
+
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+
+# פונקצייה לשמירת המיקום האינדקסי של המיקום הנוכחי לקובץ מיקום ברירת מחדל כדי שזה המיקום שייפתח בפעם הראשונה שנכנסים לתוכנה
+def save_default_location(index):
+    """ שומר את המיקום הנוכחי בקובץ """
+    try:
+            global settings_dict, settings_file_path
+            # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
+            setting_location = {"default_location_index": index}
+            settings_dict.update(setting_location)
+            
+            # כל ההגדרות המעודכנות לקובץ JSON
+            with open(settings_file_path, "w") as f:
+                ujson.dump(settings_dict, f)
+            
+            # הדפסה למסך שנבחר מיקום ברירת מחדל חדש
+            tft.fill(0) # מחיקת המסך
+            tft.write(FontHeb20,f'{reverse("מיקום ברירת מחדל הוגדר בהצלחה")}',20,75)
+            tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',120,100)
+            tft.show() # כדי להציג את הנתונים על המסך
+            time.sleep(2) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
+            
+    except Exception as e:
+        print("שגיאה בשמירת המיקום:", e)
 
 # הגדרת משתנה גלובלי חשוב מאוד שקובע מה המיקום הנוכחי שעליו מתבצעים החישובים
 # משתנה זה נקבע לפי המיקום האינדקסי ששמור בקובץ מיקום ברירת מחדל תוך בדיקה שהאינדקס לא חורג מגבולות הרשימה ואם כן חורג אז יוגדר המיקום האפס כברירת מחדל
@@ -991,7 +1043,7 @@ def go_to_default_location():
     # מאפס את המיקום שאוחזים בו בדפדוף ברשימת המיקומים כך שהדפדוף הבא יתחיל מהתחלה ולא מהמיקום האינדקסי של מיקום ברירת המחדל
     location_index = 0
     
-go_to_default_location() # קריאה פעם אחת בתחילת הקוד
+go_to_default_location() # קריאה פעם אחת בתחילת הקוד 
 
 ##############################################################################################
 
@@ -1003,14 +1055,14 @@ current_screen_hesberim = 0.0  #
 current_screen_zmanim = 0
 
 # משתנים גלובליים
-last_state = None  # כאן נשמור את מצב כל הנתונים בפעם האחרונה. אם משהו כאן משתנה צריך לחשב מחדש זריחות ושקיעות
+last_state_for_rise_set_calculation = None  # כאן נשמור את מצב כל הנתונים בפעם האחרונה. אם משהו כאן משתנה צריך לחשב מחדש זריחות ושקיעות
 last_location_riset = None # עבור אובייקט שמחזיק את חישובי השמש הירח הזריחות והשקיעות
 
 # הפונקצייה הראשית שבסוף גם מפעילה את הנתונים על המסך
 def main_halach_clock():
                  
     # הצהרה על משתנים גלובליים ששומרים את הזמנים הדרושים
-    global last_state, last_location_riset
+    global last_state_for_rise_set_calculation, last_location_riset
     global sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise
     global tset_hacochavim, misheiakir
      
@@ -1029,7 +1081,7 @@ def main_halach_clock():
     current_hour = (hour + (minute / 60) + (second / 3600)) - location_offset_hours
     
     # יצירת חתימה (state) של כל מה שחשוב לחישוב מחדש של זריחות ושקיעות
-    current_state = (
+    current_state_for_rise_set_calculation = (
         location, # אם משתנה מיקום
         current_location_date, # אם משתנה תאריך
         location_offset_hours, # אם משתנה משעון קיץ לחורף או להיפך
@@ -1040,7 +1092,7 @@ def main_halach_clock():
     )
      
     # אם המצב השתנה — נחשב מחדש. בהפעלה הראשונה תמיד נכנס לכאן כי בתחילה הוגדר על None
-    if current_state != last_state:
+    if current_state_for_rise_set_calculation != last_state_for_rise_set_calculation:
         print("שינוי בזיהוי — מחשב מחדש זריחות ושקיעות")
         # ריקון כל המשתנים כדי שלא ישתמשו בנתונים לא נכונים
         sunrise, sunset, mga_sunrise, mga_sunset, yesterday_sunset, mga_yesterday_sunset, tomorrow_sunrise, mga_tomorrow_sunrise = [None] * 8
@@ -1078,7 +1130,7 @@ def main_halach_clock():
         ########################################################################
         # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
         last_location_riset = riset
-        last_state = current_state
+        last_state_for_rise_set_calculation = current_state_for_rise_set_calculation
         ##########################################
         
    
@@ -1332,34 +1384,6 @@ def main_halach_clock():
     tft.line(0, 145, 320, 145, s3lcd.YELLOW) # קו הפרדה
 
     tft.show() # כדי להציג את הנתונים על המסך
-    
-    
-################################################################################
-
-
-# פונקצייה לשמירת המיקום האינדקסי של המיקום הנוכחי לקובץ מיקום ברירת מחדל כדי שזה המיקום שייפתח בפעם הראשונה שנכנסים לתוכנה
-def save_default_location(index):
-    """ שומר את המיקום הנוכחי בקובץ """
-    try:
-        # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
-            global settings_dict
-            settings = {"default_location_index": index}
-            settings_dict.update(settings)
-            
-            # כל ההגדרות המעודכנות לקובץ JSON
-            with open("settings.json", "w") as f:
-                ujson.dump(settings_dict, f)
-            
-            # הדפסה למסך שנבחר מיקום ברירת מחדל חדש
-            tft.fill(0) # מחיקת המסך
-            tft.write(FontHeb20,f'{reverse("מיקום ברירת מחדל הוגדר בהצלחה")}',20,75)
-            tft.write(FontHeb25,f'{reverse(locations[location_index]["heb_name"])}',120,100)
-            tft.show() # כדי להציג את הנתונים על המסך
-            time.sleep(2) # השהייה 5 שניות כדי שיהיה זמן לראות את ההודעה לפני שהמסך ייתמלא שוב בחישובים
-            
-    except Exception as e:
-        print("שגיאה בשמירת המיקום:", e)
-
 
 
 ############################################################################################################################################################
@@ -1597,11 +1621,11 @@ def menu_settings_loop(only_key=None):
                 break
     
     # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
-    global settings_dict
+    global settings_dict, settings_file_path
     settings_dict.update(settings)
     
     # כל ההגדרות המעודכנות לקובץ JSON
-    with open("settings.json", "w") as f:
+    with open(settings_file_path, "w") as f:
         ujson.dump(settings_dict, f)
 
     # הודעת סיום
@@ -1772,6 +1796,7 @@ def toggle_boot_button(pin):
 boot_button.irq(trigger=Pin.IRQ_FALLING, handler=toggle_boot_button)
 
 
+
 ##############################################################################################################################3
 def entering_sleep_mode():
 
@@ -1817,31 +1842,6 @@ def entering_sleep_mode():
     # מצב שינה. היציאה ממצב שינה מתבצעת באמצעות לחיצה על הכפתור שמעיר את המכשיר וקורא שוב לקובץ מיין שקורא שוב לקובץ מיין שמש
     machine.deepsleep() # לא מתעורר כל עוד שלא לוחצים על כפתור 14
 #############################################################################    
-
-
-# פונקצייה נורא חשובה שעושה כמה פעולות קריטיות בלחיצה על כפתור ההפעלה/כיבוי
-# 1: מפעילה או מכבה 2: מחזירה למיקום ברירת מחדל. 3: מאפסת את המשתנה של הזמן שלפיו נקבע מתי יכבה המסך מעצמו
-def toggle_power(pin):
-    
-    button_14.irq(handler=None)  # השבתת ה-IRQ כדי למנוע הפעלה כפולה של פונקצייה זו
-    
-    # המשתנה הגלובלי ששולט על האם לכבות או להדליק
-    global power_state
-    
-    # הפיכת המצב גורמת להדלקה או כיבוי שמתבצעת בפועל בפונקצייה הראשית מיין-מיין
-    power_state = not power_state 
-    #  תזכורת שפעם שלא הלכנו לשינה עמוקה עשיתי כאן import main וזה התחיל הכל מהתחלה
-
-    # המתנה כדי למנוע לחיצה כפולה
-    while button_14.value() == 0:  # ממתין שהכפתור ישתחרר
-        time.sleep_ms(50)
-    
-    button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)  # הפעלת ה-IRQ מחדש לאחר שסיימנו את הפעולה של הפונקצייה
-            
-
-# חיבור הכפתור לפונקציה הנל. לחיצה על הכפתור קוראת לפונקצייה שמעדכנת את משתנה הכוח
-# כרגע מתבצע באמצעות כפתור בוט אבל אפשר גם באמצעות הכפתור השני
-button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 
 ##################################################################################################################
@@ -2106,3 +2106,5 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
+
+
