@@ -1609,6 +1609,15 @@ def menu_settings_loop(only_key=None):
             tft.show()
 
             duration = handle_button_press(boot_button)
+            
+            # זה גורם שאם אין שום לחיצה מדלגים על המשך הסיבוב הנוכחי בלולאה
+            if not duration:
+                continue
+            
+            # עדכון זמן התחלה של המעקב לאחר לחיצה.
+            # אם הגענו לכאן חייב להיות שהייתה לחיצה
+            last_activity = time.time()
+            
             if duration == "short":
                 item["index"] = (index + 1) % len(options)
             elif duration == "long":
@@ -2106,5 +2115,6 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
+
 
 
