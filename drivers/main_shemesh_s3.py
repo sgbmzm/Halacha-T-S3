@@ -903,6 +903,10 @@ hesberim = [
         ["לחיצה קצרה: שינוי מיקום"],
         ["לחיצה מתמשכת: תפריט הגדרות"],
         ["הדלקה בשני הלחצנים: עדכון תוכנה"],
+        
+        #["שורת זמנים מעוגלים בשעון רגיל - וכן שעונים כדלהלן"],
+        #["גריניץ  |  מקומי  |  מקומי-ממוצע  |  זמן-מהשקיעה"],
+        #["שורת הסברים ומידע - שורה תחתונה"],
 
         [f"כשהשעון מכוון: דיוק הזמנים {reverse('10')} שניות"],
         
@@ -982,7 +986,7 @@ settings_dict = {
 settings_file_path = "halacha_clock/hw_settings.json"
 
 # פונקצייה מאוד חשובה לטעינת כל ההגדרות של שעון ההלכה מתוך קובץ ההגדרות
-def load_sesings_dict_from_file():
+def load_settings_dict_from_file():
     global settings_dict, settings_file_path
     try:
         with open(settings_file_path, "r") as f:
@@ -995,7 +999,7 @@ def load_sesings_dict_from_file():
     except Exception as e:
         print(f"שגיאה בטעינת הקובץ: {e}")
 
-load_sesings_dict_from_file() # טעינת ההגרות פעם אחת בתחילת הקוד
+load_settings_dict_from_file() # טעינת ההגרות פעם אחת בתחילת הקוד
 
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1048,11 +1052,10 @@ go_to_default_location() # קריאה פעם אחת בתחילת הקוד
 ##############################################################################################
 
 
-# משתנה לשליטה על איזה נתונים יוצגו בהסברים במסך של שעון ההלכה בכל שנייה
-current_screen_hesberim = 0.0  #
-
-# משתנה לשליטה אלו נתונים יוצגו בשורת הזמנים 
-current_screen_zmanim = 0
+# משתנים לשליטה בתצוגת השורות המוחלפות
+current_screen_hesberim = 0.0 
+current_screen_zmanim = 0.0
+current_screen_zmanim_with_clocks = 0.0
 
 # משתנים גלובליים
 last_state_for_rise_set_calculation = None  # כאן נשמור את מצב כל הנתונים בפעם האחרונה. אם משהו כאן משתנה צריך לחשב מחדש זריחות ושקיעות
@@ -1286,7 +1289,7 @@ def main_halach_clock():
         ##################################################
     
     zmanim = [
-        ["זמנים בשעון רגיל - עיגול לדקה קרובה"],
+        #["זמנים בשעון רגיל - עיגול לדקה קרובה"],
         [f"עלות השחר: {reverse(hhh(mga_sunrise, 0, 0))} | משיכיר: {reverse(hhh(misheiakir, 0, 0))}"], 
         [f"זריחה גרא: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
         [f"סוף שמע: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=3))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=3))}"], 
@@ -1351,16 +1354,17 @@ def main_halach_clock():
     tft.write(FontHeb20,f'    {phase_percent:.1f}%',0,101, s3lcd.CYAN, s3lcd.BLACK)
     tft.write(FontHeb40,f"{" " if s_alt > 0 else ""}{" " if abs(s_alt) <10 else ""}{round(s_alt,3):.3f}°", 140, 81, s3lcd.GREEN, s3lcd.BLACK)
     
-    # הכנה לשורת הסברים מתחלפת
-    global current_screen_hesberim
+    global current_screen_hesberim, current_screen_zmanim, current_screen_zmanim_with_clocks
+    # הגדרת תוכן השורות: הסברים, זמנים, זמנים עם שעונים
     hesberim_string = reverse(hesberim[int(current_screen_hesberim)][0])  # רוורס של הטקסט העברי
-    current_screen_hesberim = (current_screen_hesberim + 0.3) % len(hesberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
-    
-    # הכנה לשורת זמנים מתחלפת
-    global current_screen_zmanim
     zmanim_string = reverse(zmanim[int(current_screen_zmanim)][0])
-    zmanim_with_clocks_string = reverse(zmanim_with_clocks[int(current_screen_zmanim)][0]) 
-    current_screen_zmanim = (current_screen_zmanim + 0.15) % len(zmanim)
+    zmanim_with_clocks_string = reverse(zmanim_with_clocks[int(current_screen_zmanim_with_clocks)][0])
+    
+    # קידום בשלב אחד עבור הגדרת השרוה הבאה בסיבוב הבא
+    speed_step = 0.15 #מהירות ההחלפה כדלהלן: 0.15 = 6 שניות | 0.3 = 3 שניות | 0.45 = שנייה וחצי
+    current_screen_hesberim = (current_screen_hesberim + (speed_step * 2)) % len(hesberim)  # זה גורם מחזור של שניות לאיזה נתונים יוצגו במסך
+    current_screen_zmanim = (current_screen_zmanim + speed_step) % len(zmanim)
+    current_screen_zmanim_with_clocks = (current_screen_zmanim_with_clocks + speed_step) % len(zmanim_with_clocks)
     
     # קביעה מה יודפס בשורת ההסברים: האם שעונים זמנים או הסברים. ולאחר מכן הדפסה למסך של מה שנבחר   
     hesberim_zmanim_clocks = settings_dict["hesberim_mode"]
@@ -1646,7 +1650,7 @@ def menu_settings_loop(only_key=None):
     global current_screen_hesberim, current_screen_zmanim
     current_screen_hesberim = 0.0
     current_screen_zmanim = 0
-    load_sesings_dict_from_file() # טעינת ההגדרות החדשות
+    load_settings_dict_from_file() # טעינת ההגדרות החדשות
     
 # פונקצייה להצגת מידע על התוכנה    
 def show_about():
@@ -2115,6 +2119,4 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
-
-
 
