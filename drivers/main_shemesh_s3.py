@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "31/10/2025"
+VERSION = "02/11/2025"
 
 ######################################################################################################################
 
@@ -284,36 +284,35 @@ def get_normal_weekday(rtc_weekday):
     weekday_dict = {6:1,0:2,1:3,2:4,3:5,4:6,5:7}
     return weekday_dict.get(rtc_weekday)
 
-# פונקצייה שמחזירה נכון או לא נכון האם כרגע נוהג שעון קיץ בישראל
+# פונקצייה שמחזירה נכון או לא נכון האם נוהג שעון קיץ בישראל לזמן המבוקש
 # היא מתבססת על מה השעה והתאריך ברגע זה בשעון הפנימי של המיקרו בקר ולכן חייבים להגדיר אותו לפני שקוראים לפונקצייה זו
 # שעון הקיץ מופעל בישראל בין יום שישי שלפני יום ראשון האחרון של חודש מרץ בשעה 02:00, לבין יום ראשון האחרון של חודש אוקטובר בשעה 02:00.
 # השעה 2 בלילה של שינוי השעון הם בשעון ישראל ואילו שעון הבקר מוגדר לאיזור זמן גריניץ לכן הקדמתי בשעתיים לשעה 0 שעון גריניץ
-def is_now_israel_DST():
-    # קבלת השנה הנוכחית
-    current_year = utime.localtime()[0]
-    
-    # חישוב יום ראשון האחרון של מרץ
-    march_last_sunday = utime.mktime((current_year, 3, 31, 0, 0, 0, 0, 0, 0))
-    while utime.localtime(march_last_sunday)[6] != get_rtc_weekday(1):
-        march_last_sunday -= 86400  # מורידים יום
-    
-    # חישוב יום שישי שלפני יום ראשון האחרון של מרץ
-    # אם יום ראשון האחרון הוא ה-31, אז יום שישי לפניו יהיה ה-29.
-    last_friday_march = march_last_sunday - 2 * 86400  # מורידים 2 ימים (שישי)
+def is_israel_DST(timestamp):
+    """
+    timestamp: מספר שניות מאז Epoch (1970-01-01 00:00:00 UTC)
+    מחזיר True אם הזמן הוא בשעון קיץ בישראל, אחרת False
+    """
+    # המרת timestamp ל-localtime כדי לדעת את השנה
+    t = utime.localtime(timestamp)
+    year = t[0]
 
-    # חישוב יום ראשון האחרון של אוקטובר
-    october_last_sunday = utime.mktime((current_year, 10, 31, 0, 0, 0, 0, 0, 0))
-    while utime.localtime(october_last_sunday)[6] != get_rtc_weekday(1): 
-        october_last_sunday -= 86400  # מורידים יום
+    # --- חישוב יום ראשון האחרון של מרץ ---
+    march_last_sunday = utime.mktime((year, 3, 31, 0, 0, 0, 0, 0, 0))
+    while utime.localtime(march_last_sunday)[6] != get_rtc_weekday(1):
+        march_last_sunday -= 86400  # יום אחורה
     
-    # השוואה בין הזמן הנוכחי לתאריכים של שעון קיץ
-    current_time = utime.mktime(utime.localtime())
-    
-    # שעון קיץ פעיל בין יום שישי שלפני יום ראשון האחרון של מרץ ועד יום ראשון האחרון של אוקטובר
-    if last_friday_march <= current_time < october_last_sunday:
-        return True  # שעון קיץ פעיל
-    else:
-        return False  # לא פעיל
+    # יום שישי שלפני יום ראשון האחרון של מרץ
+    last_friday_march = march_last_sunday - 2 * 86400
+
+    # --- חישוב יום ראשון האחרון של אוקטובר ---
+    october_last_sunday = utime.mktime((year, 10, 31, 0, 0, 0, 0, 0, 0))
+    while utime.localtime(october_last_sunday)[6] != get_rtc_weekday(1):
+        october_last_sunday -= 86400
+
+    # --- בדיקה אם בתוך תקופת שעון קיץ ---
+    return last_friday_march <= timestamp < october_last_sunday
+
 
 
 # פונקצייה לפריטת שעה בשבר עשרוני לשניות
@@ -382,75 +381,78 @@ button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 ######################################################################################################
 
-def get_timestamp_from_screen():
+def get_timestamp_from_screen(use_israel_offset=True):
+    # ברירת המחדל שאיזור הזמן הוא שעון ישראל. רק אם מוגדר use_israel_offset = False אז יוצג גם בחירת איזור זמן לפי הפרש מגריניץ.
     """מאפשר למשתמש להגדיר תאריך ושעה ידנית ולהחזיר חותמת זמן UTC או None במקרה של ביטול."""
     
-    ###############################################################
-    # השבתת הפעילות הרגילה של כפתור 14 כי כאן צריך אותו לשימוש אחר.
+    # השבתת הפעילות הרגילה של כפתור 14
     button_14.irq(handler=None)
-    ##############################################################
     
-    # הניסיון הוא רק כדי שבסוף נוכל לעשות finally ולהחזיר את כפתור 14 לפעולתו הרגילה
     try: 
         rtc_system = machine.RTC()
         current = list(rtc_system.datetime())  # (year, month, day, weekday, hour, minute, second, subseconds)
-        date_parts = ["יום", "חודש", "שנה", "שעה", "דקה", "שנייה", "הפרש שעות מגריניץ", "אישור/ביטול"]
+        
+        date_parts = ["יום", "חודש", "שנה", "שעה", "דקה", "שנייה", "אישור/ביטול"]
         indices = [2, 1, 0, 4, 5, 6]
         position = 0
 
         MIN_YEAR = 2001
         MAX_YEAR = 2100
-        local_offset = 3 if is_now_israel_DST() else 2
-        utc_offset = local_offset
+        utc_offset = 0
 
-        pos_x_values = [10, 43, 76, 137, 170, 203, 240]  # X לשדה תאריך/שעה
-        y_line = 5          # Y לשורה הראשונה
+        pos_x_values = [10, 43, 76, 137, 170, 203]
+        y_line = 5  # Y לשורה הראשונה
 
         ok_index = 0
         ok_str_options = [reverse("אישור"), reverse("ביטול")]
         
-        # כדי לדעת מתי לצאת כשיש חוסר פעילות 
+        # כדי לדעת מתי לצאת עקב חוסר פעילות
         last_activity = time.time()
         
+        # הגדרת מספר השלבים המקסימלי לפי מצב
+        max_position = 6  # לאחר השנייה ישר לאישור
+        # אם לא ישראל, נוסיף שדה UTC
+        if not use_israel_offset:
+            date_parts.insert(6, "הפרש שעות מגריניץ")
+            pos_x_values.append(240)
+            max_position = 7
+
         while True:
-            
             # בדיקה אם עברו 20 שניות בלי פעילות
             if time.time() - last_activity > 20:
                 tft.fill(0)
                 tft.write(FontHeb25, reverse("יציאה עקב חוסר פעילות"), 10, 60)
                 tft.show()
                 time.sleep(2)
-                return None# יציאה מהפונקציה לגמרי
-            
-            
-            utc_hour = (current[4] - utc_offset) % 24
-            ok_str = ok_str_options[ok_index]
+                return
 
             # בניית המחרוזות להצגה
             values_str = [
                 f"{current[2]:02d}/", f"{current[1]:02d}/", f"{current[0]}",
-                f"{current[4]:02d}:", f"{current[5]:02d}:", f"{current[6]:02d}",
-                f"utc{utc_offset:+03d}"
+                f"{current[4]:02d}:", f"{current[5]:02d}:", f"{current[6]:02d}"
             ]
+            if not use_israel_offset:
+                values_str.append(f"utc{utc_offset:+03d}")
+
+            utc_hour = (current[4] - utc_offset) % 24
             utc_time_str = f"utc: {utc_hour:02d}:{current[5]:02d}:{current[6]:02d}"
+            ok_str = ok_str_options[ok_index]
 
             # הצגת המסך
             tft.fill(0)
-
-            # שורה ראשונה – תאריך ושעה
             for i, val in enumerate(values_str):
-                bg_color = s3lcd.CYAN if i == position and position < 7 else s3lcd.BLACK
-                fg_color = s3lcd.BLACK if i == position and position < 7 else s3lcd.GREEN
+                bg_color = s3lcd.CYAN if i == position else s3lcd.BLACK
+                fg_color = s3lcd.BLACK if i == position else s3lcd.GREEN
                 tft.write(FontHeb25, val, pos_x_values[i], y_line, fg_color, bg_color)
 
-            # שורה לשדה – אישור/ביטול
-            bg_color_ok = s3lcd.CYAN if position == 7 else s3lcd.BLACK
-            fg_color_ok = s3lcd.BLACK if position == 7 else s3lcd.GREEN
-            tft.write(FontHeb25, ok_str, center(ok_str,FontHeb25), 55, fg_color_ok, bg_color_ok)
-
-            # הצגת השעה בגריניץ והשדה הנוכחי
-            tft.write(FontHeb20, utc_time_str, pos_x_values[3]-30, y_line+30, s3lcd.CYAN, s3lcd.BLACK)
-            tft.write(FontHeb20, reverse(f"שלב נוכחי: {date_parts[position]}"), center(reverse(f"שלב נוכחי: {date_parts[position]}"),FontHeb20), 80, s3lcd.YELLOW, s3lcd.BLACK)
+            bg_color_ok = s3lcd.CYAN if position == max_position else s3lcd.BLACK
+            fg_color_ok = s3lcd.BLACK if position == max_position else s3lcd.GREEN
+            tft.write(FontHeb25, ok_str, center(ok_str, FontHeb25), 55, fg_color_ok, bg_color_ok)
+            if not use_israel_offset:
+                tft.write(FontHeb20, utc_time_str, pos_x_values[3]-30, y_line+30, s3lcd.CYAN, s3lcd.BLACK)
+            else:
+                tft.write(FontHeb20, reverse("הזן זמן לפי שעון ישראל"), pos_x_values[1], y_line+30, s3lcd.CYAN, s3lcd.BLACK)
+            tft.write(FontHeb20, reverse(f"שלב נוכחי: {date_parts[position]}"), center(reverse(f"שלב נוכחי: {date_parts[position]}"), FontHeb20), 80, s3lcd.YELLOW, s3lcd.BLACK)
 
             # טיפים למשתמש
             tft.write(FontHeb20, reverse("לחיצה קצרה משנה ערך"), 50, 110)
@@ -462,11 +464,9 @@ def get_timestamp_from_screen():
             press_main = handle_button_press(boot_button)
             press_down = handle_button_press(button_14)
             
-            # אם לא נלחץ שום כפתור - דלג על המשך הלולאה
             if not press_main and not press_down:
                 continue
-            
-            # אם מגיעים לכאן אז בטוח שנלחץ כפתור כלשהו ולכן דוחים את זמן היציאה האוטומטית
+
             last_activity = time.time()
 
             # לחיצה קצרה
@@ -485,11 +485,11 @@ def get_timestamp_from_screen():
                         current[i] = (current[i] + 1) % 60
                     elif position == 5:
                         current[i] = (current[i] + 1) % 60
-                elif position == 6:
+                elif position == 6 and not use_israel_offset:
                     utc_offset += 1
                     if utc_offset > 12:
                         utc_offset = -12
-                elif position == 7:
+                elif position == max_position:
                     ok_index = 1 - ok_index  # החלפה בין אישור/ביטול
 
             elif press_down == "short":
@@ -507,26 +507,29 @@ def get_timestamp_from_screen():
                         current[i] = (current[i] - 1) % 60
                     elif position == 5:
                         current[i] = (current[i] - 1) % 60
-                elif position == 6:
+                elif position == 6 and not use_israel_offset:
                     utc_offset -= 1
                     if utc_offset < -12:
                         utc_offset = 12
-                elif position == 7:
-                    ok_index = 1 - ok_index  # החלפה בין אישור/ביטול
+                elif position == max_position:
+                    ok_index = 1 - ok_index
 
             # לחיצה ארוכה
             elif press_main == "long":
-                if position == 7:
+                if position == max_position:
                     if ok_index == 0:  # אישור
-                        rtc_hour_utc = (current[4] - utc_offset) % 24
-                        time_tuple = (current[0], current[1], current[2], rtc_hour_utc, current[5], current[6], 0, 0)  
-                        return time.mktime(time_tuple)
+                        time_tuple = (current[0], current[1], current[2], current[4], current[5], current[6], 0, 0)
+                        timestamp = time.mktime(time_tuple)
+                        if use_israel_offset:
+                            utc_offset = 3 if is_israel_DST(timestamp) else 2
+                        timestamp_utc = timestamp - (utc_offset * 3600)
+                        return timestamp_utc
                     else:  # ביטול
-                        return None
+                        return
                 else:
                     position += 1
-                    if position > 7:
-                        position = 7
+                    if position > max_position:
+                        position = max_position
 
             elif press_down == "long":
                 position -= 1
@@ -534,9 +537,9 @@ def get_timestamp_from_screen():
                     position = 0
 
             time.sleep(0.1)
-            
+
     finally:
-        # הפעלת ה־IRQ מחדש ללא קשר לדרך היציאה
+        # הפעלת ה־IRQ מחדש
         button_14.irq(trigger=Pin.IRQ_FALLING, handler=toggle_power)
 
 ##############################################################
@@ -963,7 +966,7 @@ def get_current_location_timestamp():
     current_utc_timestamp =  rtc_system_timestamp # כי בתחילת הקוד גרמנו שהשעון החיצוני יעדכן את השעון הפנימי בשעה באיזור זמן UTC-0
     # בדיקה האם המיקום הנוכחי הוא משווה 00 או הקוטב הצפוני אפס כי שם אני לא רוצה שיהיה שעון קיץ
     is_location_mashve_or_kotev = location["long"] == 0.0 and location["lat"] == 0.0 or location["long"] == 0.0 and location["lat"] == 90.0
-    is_location_dst = True if is_now_israel_DST() and not is_location_mashve_or_kotev else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
+    is_location_dst = True if is_israel_DST(current_utc_timestamp) and not is_location_mashve_or_kotev else False # כרגע כל שעון הקיץ או לא שעון קיץ נקבע לפי החוק בישראל גם עבור מקומות אחרים
     location_offset_hours = get_generic_utc_offset(location["long"], dst=is_location_dst) # חישוב הפרש הזמן מגריניץ עבור המיקום הנוכחי בשעות
     location_offset_seconds = get_generic_utc_offset(location["long"], dst=is_location_dst, in_seconds = True) # חישוב הפרש הזמן בשניות
     current_location_timestamp = current_utc_timestamp + location_offset_seconds # חותמת הזמן המקומית היא UTC-0 בתוספת הפרש השניות המקומי
