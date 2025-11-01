@@ -46,7 +46,6 @@ import s3lcd
 tft = tft_config.config(rotation=3) # כיוון סיבוב התצוגה שאני רוצה בגלל הבליטה של השעון החיצוני
 tft.init() # כך חייבים לעשות
 
-
 ####################################################################3
 
 
@@ -337,7 +336,8 @@ def center(text, font):
     # הגדרת הפיקסל שבמרכז המסך
     tft_pixel_center = 160 # tft.width() // 2
     # הגדרת הפיקסל שבמרכז הטקסט
-    text_pixel_center = len(text) // 2 * font.MAX_WIDTH // 2 # כלומר הרוחב בפיקסלים של חצי מהטקסט
+    text_pixel_center = tft.write_len(font, text) // 2 # write_len מחזיר את רוחב השורה בפיקסלים. וחצי מזה זה הפיקסל שבאמצע הטקסט
+    # פעם השתמשתי הרבה פחות מוייק ב text_pixel_center = len(text) // 2 * font.MAX_WIDTH // 2 # כלומר הרוחב בפיקסלים של חצי מהטקסט
     return tft_pixel_center - text_pixel_center # זה אומר כמה ימינה ממרכז המסך צריך להתחיל את ההדפסה כדי שמרכז ההדפסה יהיה במרכז המסך
 
 
@@ -891,7 +891,7 @@ locations = [
 hesberim = [
     
         [f"שעון ההלכה גרסה: {reverse(VERSION)}"],
-        [" מאת: שמחה גרשון בורר - כוכבים וזמנים"],
+        ["מאת: שמחה גרשון בורר - כוכבים וזמנים"],
         [f'{reverse("sgbmzm@gmail.com")}'],
         ["כל הזכויות שמורות - להלן הסברים"],
         ["בתקלה: יש ללחוץ על לחצן האיפוס"],
@@ -904,25 +904,25 @@ hesberim = [
         ["לחיצה מתמשכת: תפריט הגדרות"],
         ["הדלקה בשני הלחצנים: עדכון תוכנה"],
         
-        #["שורת זמנים מעוגלים בשעון רגיל - וכן שעונים כדלהלן"],
-        #["גריניץ  |  מקומי  |  מקומי-ממוצע  |  זמן-מהשקיעה"],
-        #["שורת הסברים ומידע - שורה תחתונה"],
+        ["מתחלף: זמנים/שעונים מיוחדים/הסברים"],
+        ["הזמנים בשעון רגיל - והשעונים כדלהלן"],
+        ["גריניץ, מקומי, מקומי-ממוצע, מהשקיעה"],
 
         [f"כשהשעון מכוון: דיוק הזמנים {reverse('10')} שניות"],
         
-        [" התאריך העברי מתחלף בשקיעה"],
+        ["התאריך העברי מתחלף בשקיעה"],
         
-        [" מתחת גרא/מגא:  דקות בשעה זמנית"],
+        ["מתחת גרא/מגא:  דקות בשעה זמנית"],
         [" מתחת שמש/ירח:  אזימוט שמש/ירח"],
         ["אזימוט = מעלות מהצפון, וכדלהלן"],
         [f"צפון={reverse('0/360')}, מז={reverse('90')}, ד={reverse('180')}, מע={reverse('270')}"],
-        ["  שלב הירח במסלולו החודשי - באחוזים"],
+        ["שלב הירח במסלולו החודשי - באחוזים"],
         [f"מולד={reverse('0/100')}, ניגוד={reverse('50')}, רבעים={reverse('25/75')}"],
     
         ["רשימת זמני היום בשעות זמניות"],
         ["זריחה ושקיעה: "+reverse('00:00')],
         ["סוף שמע ביום/רבע הלילה: "+reverse('03:00')],
-        ["  סוף תפילה ביום/שליש הלילה: "+reverse('04:00')],
+        ["סוף תפילה ביום/שליש הלילה: "+reverse('04:00')],
         [f"חצות יום ולילה: "+reverse('06:00')],
         ["מנחה: גדולה - "+reverse('06:30')+", קטנה - "+reverse('09:30')],
         ["פלג המנחה: "+reverse('10:45')],
@@ -931,7 +931,7 @@ hesberim = [
         ["להימנע מסעודה בערב שבת: "+reverse('09:00')],
         ["סוף אכילת חמץ: "+reverse('04:00')+", שריפה: "+reverse('05:00')],
         
-        ["   זמנים במעלות כשהשמש תחת האופק"],
+        ["זמנים במעלות כשהשמש תחת האופק"],
         [f"זריחת ושקיעת מרכז השמש: {reverse('0.0°')}"],
         [f"  זריחה ושקיעה במישור: {reverse('-0.833°')}"],
         
@@ -941,7 +941,7 @@ hesberim = [
         [f"לפי מיל של {reverse('24')} דקות: {reverse('-4.61°')}"],
         [f"צאת כוכבים קטנים רצופים: {reverse('-6.3°')}"],
         
-        ["  עלות השחר/צאת כוכבים דרת: במעלות"],
+        ["עלות השחר/צאת כוכבים דרת: במעלות"],
         [f"לפי 4 מיל של {reverse('18')} דקות: {reverse('-16.02°')}"],
         [f"לפי 4 מיל של {reverse('22.5')} דקות: {reverse('-19.75°')}"],
         [f"לפי 5 מיל של {reverse('24')} דקות: {reverse('-25.8°')}"],
@@ -1301,8 +1301,8 @@ def main_halach_clock():
         [f"כוכבים: גאונים - {reverse(hhh(tset_hacochavim, 0, 0))}, רת - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=12))}"],
     ]
     
-    ### הכנה לשורת שעונים. הרווחים הם בכוונה לצורך מירכוז בשעון ההלכה הפיזי
-    clocks_string = f"           {magrab_time_string}  {local_mean_time_string}  {local_solar_time_string}  {gm_time_now_string}"
+    ### הכנה לשורת שעונים
+    clocks_string = f"{magrab_time_string}  {local_mean_time_string}  {local_solar_time_string}  {gm_time_now_string}"
     
     # משתנה ששומר מערך זמנים שבו אחרי כל שורת זמן יש שורת שעונים וכך הזמנים והשעונים מוצגים לסירוגין
     zmanim_with_clocks = [item for zman_line in zmanim for item in (zman_line, [reverse(clocks_string)])]
@@ -1320,11 +1320,11 @@ def main_halach_clock():
     time_string = f'{hour:02d}:{minute:02d}:{second:02d}{"!" if time_source in [3,4] else ""}'
     
     # מהשקיעה עד 12 בלילה מוסיפים את המילה ליל כי היום בשבוע והתאריך העברי מקבלים לתאריך הלועזי של מחר
-    leil_string = reverse("ליל:") if heb_date_is_next_greg_date else ""
+    leil_string = reverse("ליל: ") if heb_date_is_next_greg_date else ""
     # אם אין שעון והוגדר זמן שרירותי או שהשעה נלקחה מהשעון הפנימי שכנראה אינו מדוייק מוסיפים סימני קריאה אחרי התאריך העברי
-    heb_date_to_print = f'   {"!!" if not time_source else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)} {leil_string}'
+    heb_date_to_print = f'{"!!" if not time_source else ""}{reverse(heb_date_string)} ,{reverse(heb_weekday_string)}{leil_string}'
     utc_offset_string = 'utc+00' if location_offset_hours == 0 else f'utc+{location_offset_hours:02}' if location_offset_hours >0 else f'utc-{abs(location_offset_hours):02}'
-    coteret = f'  {voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}'
+    coteret = f'{voltage_string} - {reverse(location["heb_name"])} - {reverse("שעון ההלכה")}'
     
     tft.fill(0) # מחיקת המסך
 
@@ -1585,7 +1585,7 @@ def menu_settings_loop(only_key=None):
         item["index"] = 0
 
     # מילון לשמירה בסוף
-    settings = {}
+    new_settings = {}
 
     total = len(menu_items)
     for stage, item in enumerate(menu_items, start=1):
@@ -1626,7 +1626,7 @@ def menu_settings_loop(only_key=None):
                 item["index"] = (index + 1) % len(options)
             elif duration == "long":
                 # שמירה של הבחירה במילון
-                settings[item["key"]] = value
+                new_settings[item["key"]] = value
                 tft.fill(0)
                 tft.write(FontHeb25, reverse(f"נבחר: {display_val}"), 40, 80)
                 tft.show()
@@ -1635,7 +1635,7 @@ def menu_settings_loop(only_key=None):
     
     # עדכון כל ההגדרות החדשות במשתנה המילון הכללי של ההגדרות 
     global settings_dict, settings_file_path
-    settings_dict.update(settings)
+    settings_dict.update(new_settings) # מעכן את ההגדרות החשות במילון הפנימי הכללי. זה גורם שיתחילו להיות מעכשיו.
     
     # כל ההגדרות המעודכנות לקובץ JSON
     with open(settings_file_path, "w") as f:
@@ -1650,7 +1650,8 @@ def menu_settings_loop(only_key=None):
     global current_screen_hesberim, current_screen_zmanim
     current_screen_hesberim = 0.0
     current_screen_zmanim = 0
-    load_settings_dict_from_file() # טעינת ההגדרות החדשות
+    ######################################3
+    
     
 # פונקצייה להצגת מידע על התוכנה    
 def show_about():
@@ -2119,4 +2120,5 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
+
 
