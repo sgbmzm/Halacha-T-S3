@@ -276,8 +276,15 @@ class RiSet:
     # ***** API start *****
     # Examine Julian dates either side of current one to cope with localtime.
     # 707μs on RP2040 at standard clock and with local time == UTC
-    def set_day(self, day: int = 0):
+    def set_day(self, day: int = 0, update_times = True):
         mjd = get_mjd(day)
+        ####################
+        #This updates the current day, but without the times.
+        #In this case set_day(0) will no longer calculate sunrises and sunsets unless we first change the day. Such as set_day(1).
+        if not update_times:
+            self.mjd = mjd
+            return self
+        ###################
         if self.mjd is None or self.mjd != mjd:
             spd = 86400  # Secs per day
             # ._t0 is time of midnight (local time) in secs since MicroPython epoch
@@ -530,6 +537,7 @@ class RiSet:
             if t_rise is not None and t_set is not None:
                 break  # All done
         return to_int(t_rise), to_int(t_set)  # Convert to int preserving None values
+
 
 
 
