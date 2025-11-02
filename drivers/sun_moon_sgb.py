@@ -283,6 +283,7 @@ class RiSet:
         #In this case set_day(0) will no longer calculate sunrises and sunsets unless we first change the day. Such as set_day(1).
         if not update_times:
             self.mjd = mjd
+            self._times = [None] * 6 # כדי לרוקן זמני זריחות ושקיעות שנכונים ליום אחר ולא ליום הנוכחי
             return self
         ###################
         if self.mjd is None or self.mjd != mjd:
