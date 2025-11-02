@@ -1109,22 +1109,36 @@ def main_halach_clock():
           
         # tlight_deg קובע כמה מעלות תחת האופק ייחשב דמדומים ואם לא מוגדר אז לא מחושב
         # riset_deg קובע כמה מעלות תחת האופק ייחשב זריחה ושקיעה ואם לא מוגדר אז מחושב -0.833 
-        # יצירת אובייקט RiSet # הקריאה הזו כבר מחשבת נתוני זריחות ושקיעות באותו יום אבל ממילא מוכרחים בסוף להגדיר riset.set_day(0) ואז יחושבו שוב
+        # יצירת אובייקט RiSet # הקריאה הזו כבר מחשבת נתוני זריחות ושקיעות באותו יום.
         riset = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg=settings_dict["rise_set_deg"], tlight_deg= settings_dict["mga_deg"]) # lto=location_offset_hours ####
         
-        # הגדרת התאריך על היום הקודם ושמירת המידע הדרוש 
-        riset.set_day(-1)
-        yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1)
-        
-        # הגדרת התאריך על היום הבא ושמירת המידע הדרוש
-        riset.set_day(1)
-        tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1)
-        
-        # החזרת הגדרת התאריך ליום הנוכחי ושמירת המידע הדרוש
-        # חייבים תמיד שהחזרה ליום הנוכחי תהיה האחרונה כדי שבסוף יישאר ריסט שמוגדר על התאריך הנוכחי
-        riset.set_day(0)
+        # איסוף הזמנים של היום הנוכחי שחושבו מיי בהגרת אובייקט ריסט
         sunrise, sunset, mga_sunrise, mga_sunset = riset.sunrise(1), riset.sunset(1), riset.tstart(1), riset.tend(1)
+        
+        # הגדרה מה זה אחרי השקיעה לפי אחת השיטות, ולפני 12 בלילה
+        is_after_sunset_before_midnight = (sunrise and sunset and current_timestamp > sunrise and current_timestamp >= sunset) or (mga_sunrise and mga_sunset and current_timestamp > mga_sunrise and current_timestamp >= mga_sunset)
+        
+        # אם מדובר אחרי השקיעה לפי אחת השיטות ולפני השעה 12 בלילה
+        # מגדירים את יום המחר ושומרים את כל הנתונים הדרושים עכשיו או בעתיד על יום המחר
+        # מהשקיעה ועד 12 בלילה הגדרת שעון שעה זמנית היא מהשקיעה של היום עד הזריחה של מחר. ושעון מהשקיעה הוא מהשקיעה של היום. לכן אין צורך לחשב את היום הקודם
+        if is_after_sunset_before_midnight:
+            riset.set_day(1)
+            tomorrow_sunrise, mga_tomorrow_sunrise  = riset.sunrise(1), riset.tstart(1)
+        
+        # בכל מקרה אחר צריך את השקיעה של אתמול לשעון מהשקיעה האחרונה ואם זה לפני הזריחה אז גם עבור שעון שעה זמנית
+        else:
+            # הגדרת התאריך על היום הקודם ושמירת המידע הדרוש 
+            riset.set_day(-1)
+            yesterday_sunset, mga_yesterday_sunset = riset.sunset(1), riset.tend(1)
             
+        # החזרת הגדרת התאריך ליום הנוכחי
+        # !!!!! חייבים תמיד שהחזרה ליום הנוכחי תהיה האחרונה כדי שבסוף יישאר ריסט שמוגדר על התאריך הנוכחי !!!!!
+        riset.set_day(0, update_times=False) # מחזיר ליום הנוכחי - בלי לחשב שוב פעם זריחות ושקיעות.
+        
+        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
+        last_location_riset = riset
+        last_state_for_rise_set_calculation = current_state_for_rise_set_calculation
+          
         ##########################################################################
         # חישוב דמדומים נוספים עבור צאת הכוכבים או משיכיר את חבירו וכדומה באמצעות מופע מחלקה חדש
         # אני מנצל כאן את הגדרת גובה הזריחה והשקיעה וגובה הדמדומים ובמקום זה עושה את הגבהים המבוקשים עבורי
@@ -1134,10 +1148,7 @@ def main_halach_clock():
         riset1 = RiSet(lat=location["lat"], long=location["long"], lto=location_offset_hours, riset_deg=settings_dict["hacochavim_deg"], tlight_deg=settings_dict["misheiacir_deg"])
         tset_hacochavim, misheiakir = riset1.sunset(1), riset1.tstart(1)
         ########################################################################
-        # עדכון המשתנים הגלובליים למיקום ולתאריך הנוכחי ולהפרש גריניץ הנוכחי ולריסט המוגדר על היום הנוכחי
-        last_location_riset = riset
-        last_state_for_rise_set_calculation = current_state_for_rise_set_calculation
-        ##########################################
+        
         
    
     # בכל מקרה ריסט הוא הקודם שההיה בשימוש כדי לחסוך בחישובים מיותרים
@@ -2123,5 +2134,6 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
+
 
 
