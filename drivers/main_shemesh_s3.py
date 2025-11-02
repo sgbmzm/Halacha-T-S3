@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "02/11/2025"
+VERSION = "03/11/2025"
 
 ######################################################################################################################
 
@@ -976,8 +976,8 @@ def get_current_location_timestamp():
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-# חיפוש מהיר של המיקום האינדקסי של ירושלים בתוך מערך המיקומים. אם לא קיים מחזיר אפס כאינדקס למיקום ברירת מחדל
-jerusalem_index = next((item for item, location in enumerate(locations) if location["heb_name"] == "ירושלים"), 0)
+# חיפוש אינדקס של "ירושלים" או החזרת 0 אם לא נמצא
+jerusalem_index = ([i for i, loc in enumerate(locations) if loc["heb_name"] == "ירושלים"] or [0])[0]
 
 settings_dict = {
     "rise_set_deg": -0.833, #-0.833 # מה גובה השמש בשעת זריחה ושקיעה. קובע לשעון שעה זמנית גרא ולהדפסת הזמנים
@@ -1748,6 +1748,7 @@ def show_current_settings():
 
 
 def main_menu():
+    last_activity = time.time() # רישום שעת תחילת הפעולה
     # אפשרויות התפריט הראשי
     main_menu = [
         {"title": "הגדרת מיקום נוכחי כברירת מחדל", "action": "update_location"},
@@ -1779,7 +1780,25 @@ def main_menu():
 
     # לולאת הבחירה
     while not choice_made:
+        
+    # בדיקה אם עברו 20 שניות בלי פעילות
+        if time.time() - last_activity > 20:
+            tft.fill(0)
+            tft.write(FontHeb25, reverse("יציאה עקב חוסר פעילות"), 10, 60)
+            tft.show()
+            time.sleep(2)
+            return  # יציאה מהפונקציה לגמרי
+        
         duration = handle_button_press(boot_button)
+        
+        # זה גורם שאם אין שום לחיצה מדלגים על המשך הסיבוב הנוכחי בלולאה
+        if not duration:
+            continue
+        
+        # עדכון זמן התחלה של המעקב לאחר לחיצה.
+        # אם הגענו לכאן חייב להיות שהייתה לחיצה
+        last_activity = time.time()
+        
         if duration == "short":
             index = (index + 1) % len(main_menu)
             show_menu()
@@ -2153,7 +2172,5 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
-
-
 
 
