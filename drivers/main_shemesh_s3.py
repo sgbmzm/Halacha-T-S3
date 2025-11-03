@@ -79,7 +79,8 @@ last_battery_percentage = None # שומר את אחוזי הסוללה האחר�
 last_is_charging = None # שולט על כל הדברים שדורשים לדעת האם כעת המכשיר מחובר לחשמל
 
 # פונקציה למדידת מתח סוללה מתוך ממוצע של 10 קריאות מתח
-def read_battery_voltage(samples=10):
+# מספר הקריאות משפיע על מהירות פעילות התוכנה. כמה שיותר קריאות התוכנה מתעכבת יותר !!!!!!!!!!!!!
+def read_battery_voltage(samples=8):
     total = 0
     for _ in range(samples):
         total += adc.read()
@@ -89,12 +90,13 @@ def read_battery_voltage(samples=10):
     return voltage
 
 # כדי לדעת אם מחובר כעת לחשמל, כדאי לבדוק מספר קריאות רצופות
-def is_charging_function(voltage, threshold=max_battery_v, stable_reads=5):
+# מספר הקריאות משפיע על מהירות פעילות התוכנה. כמה שיותר קריאות התוכנה מתעכבת יותר !!!!!!!!!!!!!!
+def is_charging_function(voltage, threshold=max_battery_v, stable_reads=1):
     count = 0
     for _ in range(stable_reads):
         if read_battery_voltage() > threshold:
             count += 1
-        time.sleep(0.01)
+        time.sleep(0.005)
     return count >= stable_reads
 
 def get_battery_percentage(voltage, min_voltage=3.6, max_voltage=4.4):
@@ -1592,8 +1594,8 @@ def menu_settings_loop(only_key=None):
     menu_items = [
         {"title": "בחר שיטת זריחה ושקיעה", "key": "rise_set_deg", "options": [0, -0.833], "suffix": "°"},
         {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
-        {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.61, -6, -8.5], "suffix": "°"},
-        {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10], "suffix": "°"},
+        {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.65, -6, -8.5], "suffix": "°"},
+        {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10.0, 11.5], "suffix": "°"},
         #{"title": "בחר בהירות מסך", "key": "screen_brightness", "options": [100, 250, 500, 1000], "suffix": ""},
         {"title": "בחר מה להציג בשורה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks", "zmanim_with_clocks"], "suffix": ""},
     ]
