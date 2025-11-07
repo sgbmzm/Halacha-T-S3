@@ -28,6 +28,11 @@ https://github.com/Xinyuan-LilyGO/T-Display-S3/issues/313
 
 <img width="1177" height="866" alt="image" src="https://github.com/user-attachments/assets/cf2f5ecf-5222-4b42-aa03-7411681b49ff" />
 
+BATTERY:
+
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/26914297-d219-45e3-bc1d-647149551e24" />
+
+https://aliexpress.com/item/1005001397326160.html?spm=a2g0o.cart.0.0.31a35c6ehX2f6U&mp=1&pdp_npi=5%40dis%21ILS%21ILS%2037.76%21ILS%2032.09%21%21ILS%2032.09%21%21%21%4021015e8517624902971176896e3646%2112000015939014602%21ct%21IL%21757453519%21%212%210&pdp_ext_f=%7B%22cart2PdpParams%22%3A%7B%22pdpBusinessMode%22%3A%22retail%22%7D%7D&gatewayAdapt=glo2isr
 
 
 ## INSTALL
