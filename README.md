@@ -32,6 +32,10 @@ BATTERY:
 
 <img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/26914297-d219-45e3-bc1d-647149551e24" />
 
+**Please note: You need to request that the order of the wires be reversed, opposite of what is shown here in the picture**
+
+5 pcs 3.7V 650mAh Lipo Polymer Lithium Rechargeable Battery + JST 1.25mm 2pin Plug 602248 For MP3 GPS Recorder Headset Camera
+
 https://aliexpress.com/item/1005001397326160.html?spm=a2g0o.cart.0.0.31a35c6ehX2f6U&mp=1&pdp_npi=5%40dis%21ILS%21ILS%2037.76%21ILS%2032.09%21%21ILS%2032.09%21%21%21%4021015e8517624902971176896e3646%2112000015939014602%21ct%21IL%21757453519%21%212%210&pdp_ext_f=%7B%22cart2PdpParams%22%3A%7B%22pdpBusinessMode%22%3A%22retail%22%7D%7D&gatewayAdapt=glo2isr
 
 
