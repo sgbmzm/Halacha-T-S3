@@ -28,6 +28,9 @@ https://github.com/Xinyuan-LilyGO/T-Display-S3/issues/313
 
 <img width="1177" height="866" alt="image" src="https://github.com/user-attachments/assets/cf2f5ecf-5222-4b42-aa03-7411681b49ff" />
 
+<img width="1475" height="860" alt="image" src="https://github.com/user-attachments/assets/24157453-433e-427c-ae8d-333ab810d188" />
+
+
 BATTERY:
 
 <img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/26914297-d219-45e3-bc1d-647149551e24" />
