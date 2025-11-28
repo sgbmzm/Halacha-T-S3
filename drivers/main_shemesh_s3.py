@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "03/11/2025"
+VERSION = "28/11/2025"
 
 ######################################################################################################################
 
@@ -1324,15 +1324,16 @@ def main_halach_clock():
         ##################################################
     
     zmanim = [
-        #["זמנים בשעון רגיל - עיגול לדקה קרובה"],
+        ["זמנים בשעון רגיל - סוטים עד כדקה"],
+        ["הזריחה והשקיעה לפי הגובה שבהגדרות"],
         [f"עלות השחר: {reverse(hhh(mga_sunrise, 0, 0))} | משיכיר: {reverse(hhh(misheiakir, 0, 0))}"], 
-        [f"זריחה גרא: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
+        [f"זריחה: {reverse(hhh(sunrise, seconds_day_gra, hour=0))}"],
         [f"סוף שמע: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=3))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=3))}"], 
         [f"סוף תפילה: מגא - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=4))}, גרא - {reverse(hhh(sunrise, seconds_day_gra, hour=4))}"],
         [f"חצות היום - וכנגדו בלילה: {reverse(hhh(sunrise, seconds_day_gra, hour=6))}"],
         [f"מנחה: גדולה - {reverse(hhh(sunrise, seconds_day_gra, hour=6.5))}, קטנה - {reverse(hhh(sunrise, seconds_day_gra, hour=9.5))}"],
         [f"פלג המנחה - {reverse(hhh(sunrise, seconds_day_gra, hour=10.75))}"],
-        [f"שקיעה גרא: {reverse(hhh(sunrise, seconds_day_gra, hour=12))}"],
+        [f"שקיעה: {reverse(hhh(sunrise, seconds_day_gra, hour=12))}"],
         [f"כוכבים: גאונים - {reverse(hhh(tset_hacochavim, 0, 0))}, רת - {reverse(hhh(mga_sunrise, seconds_day_mga, hour=12))}"],
     ]
     
@@ -1595,7 +1596,7 @@ def menu_settings_loop(only_key=None):
         {"title": "בחר שיטת זריחה ושקיעה", "key": "rise_set_deg", "options": [0, -0.833], "suffix": "°"},
         {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
         {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.65, -6, -8.5], "suffix": "°"},
-        {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10.0, 11.5], "suffix": "°"},
+        {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10.0, -11.5], "suffix": "°"},
         #{"title": "בחר בהירות מסך", "key": "screen_brightness", "options": [100, 250, 500, 1000], "suffix": ""},
         {"title": "בחר מה להציג בשורה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks", "zmanim_with_clocks"], "suffix": ""},
     ]
