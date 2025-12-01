@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "28/11/2025"
+VERSION = "1/12/2025-BME"
 
 ######################################################################################################################
 
@@ -29,7 +29,6 @@ from halacha_clock.sun_moon_sgb import RiSet  # ספריית חישובי שמש
 from halacha_clock.moonphase_sgb import MoonPhase  # ספריית חישובי שלב הירח
 from halacha_clock.ds3231 import DS3231 # שעון חיצוני
 from halacha_clock import mpy_heb_date # לחישוב תאריך עברי מתאריך לועזי. ספרייה שלי
-from halacha_clock import bme280 # לחיישן טמפרטורה ולחות
 
 
 # פונטים
@@ -129,13 +128,12 @@ solder_pin_sda = Pin(21, Pin.OPEN_DRAIN, pull=Pin.PULL_UP)
 solder_pins_i2c = SoftI2C(scl=solder_pin_scl, sda=solder_pin_sda)
 
 # זה I2C הרגיל המובנה במכשיר והוא כבר יש לו נגדים מובנים
-original_i2c = I2C(scl=Pin(44), sda=Pin(43))
+original_i2c = I2C(scl=Pin(44), sda=Pin(43), freq=20000) # חייבים כזה freq בגלל שלפעמים הכבל של החיישן ארוך מטר
 
 ######################################################################################################
 
 # משתנים גלובליים של שמות ההתקנים שיכולים להיות מחוברים ליציאת I2C עבור תוכנה זו
 ds3231_bitname = 0x68 
-bme280_bitname = 0x76 # או 0x77 רק כאשר מחברים את הפין SDO ל-VCC
 
 # פונקצייה מאוד חשובה שבודקת האם ולאיפה מחוברים DS3231 או BME280 מתוך יציאות I2C שהוגדרו לעיל
 def check_i2c_device(device_bitname):
@@ -157,14 +155,6 @@ def check_i2c_device(device_bitname):
       
   
     return is_device_connected, device_exit, device_exit_name
-
-
-
-# קריאה לפונקצייה שהוגדרה לעיל ובדיקה ראשונית בתחילת ריצת התוכנה האם BME280 מחובר ולאיפה
-is_bme280_connected, bme280_exit, bme280_exit_name = check_i2c_device(bme280_bitname)
-
-# אם מחובר jhhai BME280 אז מוגדר אובייקט BME280 לצורך מד הטמפרטורה ואם לא מחובר אז המשתנה מוגדר להיות False
-bme = bme280.BME280(i2c=bme280_exit) if is_bme280_connected else False
 
 
 ############################################################################################
@@ -1074,8 +1064,96 @@ def go_to_default_location():
     
 go_to_default_location() # קריאה פעם אחת בתחילת הקוד 
 
-##############################################################################################
 
+############################################################################################################################################################
+#################################################################   איזור הטיפול במד טמפרטורה לחות ולחץ ברומטרי  ###########################################
+############################################################################################################################################################
+
+# פונקצייה לקבלת הזמן המשמש בכל החלק בקוד שמטפל במזג האוויר
+# מדובר בזמן מקומי במיקום ברירת המחדל המוגדר
+def get_location_localtime():
+    # מקבל את השעה המקומית במיקום ברירת המחדל כחותמת זמן
+    current_utc_timestamp, current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
+    # מחזיר את הזמן המקומי כפורמט זמן רגיל
+    return utime.localtime(current_location_timestamp)
+
+
+# Variables for minimum and maximum tracking
+min_temp = float('inf')
+max_temp = float('-inf')
+min_humidity = float('inf')
+max_humidity = float('-inf')
+min_pressure = float('inf')
+max_pressure = float('-inf')
+
+min_time_temp = get_location_localtime()
+max_time_temp = get_location_localtime()
+min_time_humidity = get_location_localtime()
+max_time_humidity = get_location_localtime()
+min_time_pressure = get_location_localtime()
+max_time_pressure = get_location_localtime()
+
+# Variable for current day tracking
+current_date = get_location_localtime()[0:3]
+
+# משתנה לשליטה על איזה נתונים יוצגו במין/מקס במסך של מד הטמפרטורה בכל שנייה
+current_weather_screen = 0.0  # 0: Temperature, 1: Humidity, 2: Pressure
+
+def update_min_max(temp, humidity, pressure):
+    """Updates minimum and maximum values for temperature, humidity, and pressure."""
+    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
+    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
+
+    if temp < min_temp:
+        min_temp = temp
+        min_time_temp = get_location_localtime()
+    if temp > max_temp:
+        max_temp = temp
+        max_time_temp = get_location_localtime()
+
+    if humidity < min_humidity:
+        min_humidity = humidity
+        min_time_humidity = get_location_localtime()
+    if humidity > max_humidity:
+        max_humidity = humidity
+        max_time_humidity = get_location_localtime()
+
+    if pressure < min_pressure:
+        min_pressure = pressure
+        min_time_pressure = get_location_localtime()
+    if pressure > max_pressure:
+        max_pressure = pressure
+        max_time_pressure = get_location_localtime()
+
+def reset_min_max_if_new_day():
+    """Resets minimum and maximum values if the day changes."""
+    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
+    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
+    global current_date
+
+    today = get_location_localtime()[0:3]
+    if today != current_date:
+        current_date = today
+        min_temp = float('inf')
+        max_temp = float('-inf')
+        min_humidity = float('inf')
+        max_humidity = float('-inf')
+        min_pressure = float('inf')
+        max_pressure = float('-inf')
+        min_time_temp = get_location_localtime()
+        max_time_temp = get_location_localtime()
+        min_time_humidity = get_location_localtime()
+        max_time_humidity = get_location_localtime()
+        min_time_pressure = get_location_localtime()
+        max_time_pressure = get_location_localtime()
+
+def format_time_bme(time_tuple):
+    """Formats time tuple to HH:MM."""
+    return '{:02}:{:02}'.format(time_tuple[3], time_tuple[4])
+
+#############################################################################################################################################################
+###########################################################  סוף קוד המטפל במד טמפרטורה לחות ולחץ ברומטרי  #############################################
+#############################################################################################################################################################
 
 # משתנים לשליטה בתצוגת השורות המוחלפות
 current_screen_hesberim = 0.0 
@@ -1423,170 +1501,106 @@ def main_halach_clock():
     tft.line(0, 120, 320, 120, s3lcd.YELLOW) # קו הפרדה
     tft.line(0, 145, 320, 145, s3lcd.YELLOW) # קו הפרדה
 
-    tft.show() # כדי להציג את הנתונים על המסך
-
-
-############################################################################################################################################################
-#################################################################   איזור הטיפול במד טמפרטורה לחות ולחץ ברומטרי  ###########################################
-############################################################################################################################################################
-
-# פונקצייה לקבלת הזמן המשמש בכל החלק בקוד שמטפל במזג האוויר
-# מדובר בזמן מקומי במיקום ברירת המחדל המוגדר
-def get_location_localtime():
-    # מקבל את השעה המקומית במיקום ברירת המחדל כחותמת זמן
-    current_utc_timestamp, current_location_timestamp, location_offset_hours, location_offset_seconds = get_current_location_timestamp()
-    # מחזיר את הזמן המקומי כפורמט זמן רגיל
-    return utime.localtime(current_location_timestamp)
-
-
-# Variables for minimum and maximum tracking
-min_temp = float('inf')
-max_temp = float('-inf')
-min_humidity = float('inf')
-max_humidity = float('-inf')
-min_pressure = float('inf')
-max_pressure = float('-inf')
-
-min_time_temp = get_location_localtime()
-max_time_temp = get_location_localtime()
-min_time_humidity = get_location_localtime()
-max_time_humidity = get_location_localtime()
-min_time_pressure = get_location_localtime()
-max_time_pressure = get_location_localtime()
-
-# Variable for current day tracking
-current_date = get_location_localtime()[0:3]
-
-# משתנה לשליטה על איזה נתונים יוצגו במין/מקס במסך של מד הטמפרטורה בכל שנייה
-current_screen_bme280 = 0.0  # 0: Temperature, 1: Humidity, 2: Pressure
-
-
-def get_bme_280_data():
-    """Reads temperature, humidity, and pressure from BME280 sensor."""
-    temp = float(bme.temperature[:-1])
-    humidity = float(bme.humidity[:-1])
-    pressure = float(bme.pressure[:-3])
-    return temp, humidity, pressure
-
-def update_min_max(temp, humidity, pressure):
-    """Updates minimum and maximum values for temperature, humidity, and pressure."""
-    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
-    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
-
-    if temp < min_temp:
-        min_temp = temp
-        min_time_temp = get_location_localtime()
-    if temp > max_temp:
-        max_temp = temp
-        max_time_temp = get_location_localtime()
-
-    if humidity < min_humidity:
-        min_humidity = humidity
-        min_time_humidity = get_location_localtime()
-    if humidity > max_humidity:
-        max_humidity = humidity
-        max_time_humidity = get_location_localtime()
-
-    if pressure < min_pressure:
-        min_pressure = pressure
-        min_time_pressure = get_location_localtime()
-    if pressure > max_pressure:
-        max_pressure = pressure
-        max_time_pressure = get_location_localtime()
-
-def reset_min_max_if_new_day():
-    """Resets minimum and maximum values if the day changes."""
-    global min_temp, max_temp, min_humidity, max_humidity, min_pressure, max_pressure
-    global min_time_temp, max_time_temp, min_time_humidity, max_time_humidity, min_time_pressure, max_time_pressure
-    global current_date
-
-    today = get_location_localtime()[0:3]
-    if today != current_date:
-        current_date = today
-        min_temp = float('inf')
-        max_temp = float('-inf')
-        min_humidity = float('inf')
-        max_humidity = float('-inf')
-        min_pressure = float('inf')
-        max_pressure = float('-inf')
-        min_time_temp = get_location_localtime()
-        max_time_temp = get_location_localtime()
-        min_time_humidity = get_location_localtime()
-        max_time_humidity = get_location_localtime()
-        min_time_pressure = get_location_localtime()
-        max_time_pressure = get_location_localtime()
-
-def format_time_bme(time_tuple):
-    """Formats time tuple to HH:MM."""
-    return '{:02}:{:02}'.format(time_tuple[3], time_tuple[4])
-
-def main_bme280():
-    """Displays sensor readings and additional information on OLED."""
-    global current_screen_bme280
-
-    temp, humidity, pressure = get_bme_280_data()
-    # ייתכן שההורדה בשלושים נכונה רק עבור הגובה של מודיעין עילית ואילו במקומות אחרים יצטרכו להוריד ביחס זהה בהתאמה לגובה. צריך לבדוק
-    pressure -= 30 # הורדת הלחץ ב-30 זה תיקון הכרחי כי החיישן לא מודד טוב אלא נותן 30 יותר ממה שבאמת ולא יודע למה זה
-    # גובה התחנה
-    altitude = 320
-    # תיקון חישוב הלחץ לגובה פני הים 
-    delta_p = 12 * (altitude/100) # כלל האצבע: לחץ האוויר יורד בכ-12 hPa לכל 100 מטרים בגובה
-    pressure_at_sea_level = pressure + delta_p
-    update_min_max(temp, humidity, pressure_at_sea_level)
-    reset_min_max_if_new_day()
+    #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     
-    # Calculate dew point
-    dew_point = temp - ((100 - humidity) / 5)
-    
-    # חישוב אחוזי הסוללה שנותרו או האם מחובר לחשמל
-    global last_battery_percentage, last_is_charging
-    voltage_string = f"**%" if last_is_charging else f"{last_battery_percentage}%"
-    
-    tft.fill(0)
-
-    t = get_location_localtime()
-    time_string = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:{:02d}".format(t[2], t[1], t[0], t[3], t[4], t[5]) # להוסיף יום בשבוע
-    tft.write(FontHeb25,f'    {time_string}     {voltage_string}', 0, 0)
-    tft.write(FontHeb20,f'                    {reverse("לחות")}                   {reverse("טמפ.")}',0,30)
-    tft.write(FontHeb40,f'{temp:.1f}c', 180, 20, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb40,f' {humidity:.1f}%', 0, 20, s3lcd.GREEN, s3lcd.BLACK)
-    tft.write(FontHeb25,f'              {dew_point:.1f} c :{reverse("נקודת טל")}', 0, 54)
-    
-    tft.write(FontHeb25,f'{pressure:.1f} hPa  {reverse("לחץ בגובה")}', 50, 77)
-    tft.write(FontHeb25,f'{pressure_at_sea_level:.1f} hPa  {reverse("לחץ מתוקן")}', 50, 100)
-    
-    screen = int(current_screen_bme280)
-
-    if screen == 0:  # Temperature
-        tft.write(FontHeb25,f'{format_time_bme(min_time_temp)} {reverse("בשעה")} {min_temp:.1f}c {reverse("מינ טמפ")}', 20, 125)
-        tft.write(FontHeb25,f'{format_time_bme(max_time_temp)} {reverse("בשעה")} {max_temp:.1f}c    {reverse("מקס")}', 20, 145)
-
-    elif screen == 1:  # Humidity
-        tft.write(FontHeb25,f'{format_time_bme(min_time_humidity)} {reverse("בשעה")} {min_humidity:.1f}% {reverse("מינ לחות")}', 10, 125)
-        tft.write(FontHeb25,f'{format_time_bme(max_time_humidity)} {reverse("בשעה")} {max_humidity:.1f}%    {reverse("מקס")}', 10, 145)
-    
-    elif screen == 2:  # Pressure
-        tft.write(FontHeb25,f'{format_time_bme(min_time_pressure)} {reverse("בשעה")} {min_pressure:.1f}hPa {reverse("מינ לחץ")}', 0, 125)
-        tft.write(FontHeb25,f'{format_time_bme(max_time_pressure)} {reverse("בשעה")} {max_pressure:.1f}hPa    {reverse("מקס")}', 0, 145)
-    
-    # קידום בצעד אחד קדימה
-    current_screen_bme280 = (current_screen_bme280 + 0.1) % 3  # Cycle through screens (0, 1, 2)
+    # פונקצייה שקוראת טמפרטורה לחות ולחץ ברומטרי מחיישנים אם יש חיישן מחובר
+    # היא מנסה שני סוגי חיישנים: 1. משולב AHT20+BMP280 2. BME280.
+    # אם יש שגיאה או שאף חיישן לא מחובר היא מחזירה FALSE X 3
+    def get_temp_pressure_humidity():
         
-    tft.show()
+        try:
+            
+            from halacha_clock import ahtx0
+            from halacha_clock import bmp280 
+            
+            BMP280_I2C_ADDR = 0x77  # כתובת החיישן שלך
+            #bme280_bitname = 0x76 # או 0x77 רק כאשר מחברים את הפין SDO ל-VCC
+            #AHT20_I2C_ADDR = 0x38
+            sensor_BMP280 = bmp280.BMP280(original_i2c, addr=BMP280_I2C_ADDR)
+            sensor_AHT20 = ahtx0.AHT20(original_i2c)
+            temp, pressure, humidity = sensor_AHT20.temperature, sensor_BMP280.pressure, sensor_AHT20.relative_humidity # or sensor_BMP280.temperature       
+        except Exception:
+            print("חיישן ahtx0 לא מחובר. מנסה חיישן bme280")          
+            try:
+                from halacha_clock import bme280_float
+                # אני מניח ש BME280 מחובר ל original_i2c כדי לחסוך בבדיקות, אבל אפשר לבדוק עם check_i2c_device(bme280_bitname) כמו בתחילת הקוד
+                sensor_BME280 = bme280_float.BME280(i2c=original_i2c)
+                temp, pressure, humidity = sensor_BME280.read_compensated_data()     
+            except Exception:
+                print("אין חיישן טמפרטורה מחובר")
+                temp, pressure, humidity = False, False, False     
+        finally:
+            return temp, pressure, humidity
+                 
+    # קריאת הערכים מהפונקצייה
+    temp, pressure, humidity = get_temp_pressure_humidity()
+    # רק אם מוחזרים ערכים טובים ממשיכים בפעולות הבאות
+    if temp and pressure and humidity:
+        ################################
+        # החזרת מיקום ברירת המחדל להיות המיקום הנוכחי
+        # אם לא עושים את זה הזמן יהיה במיקום שמוגדר בשעון ההלכה ברגע חיבור חיישן הטמפרטורה
+        go_to_default_location()
+        ################################
+
+        pressure = pressure / 100
+        #######humidity = max(0, min(100, humidity+15)) # תיקון ללחות אם היא לא מדוייקת
+        # גובה התחנה
+        altitude = location["altitude"] # 320 @@@@@@@@@@@@@@בהנחה שזה כבר חזר למיקום ברירת מחזל
+        # תיקון חישוב הלחץ לגובה פני הים 
+        delta_p = 12 * (altitude/100) # כלל האצבע: לחץ האוויר יורד בכ-12 hPa לכל 100 מטרים בגובה
+        pressure_at_sea_level = pressure + delta_p
+        # עדכון ערכי המינימום והמקסימום
+        update_min_max(temp, humidity, pressure_at_sea_level)
+        # איפוס ערכי המינימום והמקסימום אם השתנה תאריך לועזי
+        reset_min_max_if_new_day()
+        
+        # חישוב טמפרטורת נקודת הטל
+        dew_point = temp - ((100 - humidity) / 5)
+        '''
+        f'{dew_point:.1f} c :{reverse("נקודת טל")}'
+        '''
+        text_temp_humidity_pressure = f'{temp:.1f}c / {humidity:.1f}% / {int(pressure_at_sea_level)} ({int(pressure)}) hpa'
+        text_min_max_temp = f'temp: {min_temp:.1f}c ({format_time_bme(min_time_temp)}) - {max_temp:.1f}c ({format_time_bme(max_time_temp)})'
+        text_min_max_humidity = f'humidity: {min_humidity:.1f}% ({format_time_bme(min_time_humidity)}) - {max_humidity:.1f}% ({format_time_bme(max_time_humidity)})'
+        text_min_max_pressure = f'hpa:  {min_pressure:.1f} ({format_time_bme(min_time_pressure)}) - {max_pressure:.1f} ({format_time_bme(max_time_pressure)})'
+        
+        # בוחרים את השורה המתאימה או את המצב הנוכחי
+        global current_weather_screen
+        w_screen = int(current_weather_screen)
+        # קידום המסך בצעדים בתוך מחזור של 6 שלבים שבו בין מסך למסך של מינ-מקס יש את הטמפרטורה הנוכחית
+        # אם רוצים שכל שורה תוצג מהר יותר אז אפשר להוסיף שיעור גבוה יותר מ- 0.1
+        current_weather_screen = (current_weather_screen + 0.1) % 6
+        
+        # קביעת הטקסט שיודפס לפי השלב הנוכחי
+        if w_screen == 1:
+            w_text = text_min_max_temp    
+        elif w_screen == 3:
+            w_text = text_min_max_humidity
+        elif w_screen == 5:
+            w_text = text_min_max_pressure
+        else:
+            w_text = text_temp_humidity_pressure
+        
+        # קביעת גודל הפונט לפי השורה
+        w_font = FontHeb20 if w_screen in [1,3,5] else FontHeb25
+        # הדפסת השורה
+        ## tft.fill_rect(0, 123, tft.width(), 20, s3lcd.BLACK) # ניקוי השורה ממה שהיה בה קודם
+        # הערך 123 השני שהוא בעצם הערך המספרי השלישי קובע כנראה את השקיפות. אם לא עושים אותו הוא אטום.
+        tft.write(w_font,w_text, center(w_text, w_font), 123, 123, s3lcd.GREEN, s3lcd.BLACK)     
+    #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    
+    # כדי להציג את כל הנתונים על המסך
+    tft.show() 
 
 
-
-#############################################################################################################################################################
-###########################################################  סוף קוד המטפל במד טמפרטורה לחות ולחץ ברומטרי  #############################################
-#############################################################################################################################################################
-
+############################################################################################################
 
 # משתנים חשובים מאוד לשמירת הזמן בתחילה כדי להשוות אליהם בהמשך ולדעת האם לעדכן דברים או לכבות את המסך וכדומה
 t_time = time.time()
 start_time_for_check_and_set_time = t_time
 start_time_for_automatic_deepsleep = t_time
 
-#########################################################################################################
+##############################################
 
 # הפעלה של התפריט
 def menu_settings_loop(only_key=None):
@@ -1831,12 +1845,6 @@ def main_menu():
 def toggle_boot_button(pin):
     """ מטפל בלחיצה על הכפתור של שינוי וטיפול במיקומים ומבדיל בין לחיצה קצרה ללחיצה ארוכה """
     
-    #######################################################
-    # אין לפונקצייה הזו משמעות אם מוצג מד טמפרטורה ולחות
-    if is_bme280_connected:
-        return
-    #######################################################
-    
     # הכרזה על משתנים גלובליים שיטופלו בלחיצה על הכפתור
     global location_index
     global location
@@ -1920,7 +1928,7 @@ def entering_sleep_mode():
 def main_main():
     
     # הצהרה על משתנים גלובליים שצריך להגדיר אותם מחדש בתוך פונקצייה זו
-    global power_state, start_time_for_automatic_deepsleep, start_time_for_check_and_set_time, is_bme280_connected, bme
+    global power_state, start_time_for_automatic_deepsleep, start_time_for_check_and_set_time
     global last_voltage, last_battery_percentage, last_is_charging
 
     # קריאת המתח של החשמל ולפי זה קביעת רמת התאורה האחורית של המסך כדי לחסוך בצריכת חשמל וכן הדלקת רכיבים נוספים שקשורים למסך ולכוח
@@ -1930,11 +1938,6 @@ def main_main():
     
     # קורא את הזמן העדכני בכל שנייה מחדש
     current_time = time.time()
-    
-    # תיקון כדי שניתוק BME280 לאחר דקות ממהדלקה לא יכניס מייד למצב שינה
-    if is_bme280_connected:
-        # עדכון זמן הקריאה האחרונה
-        start_time_for_automatic_deepsleep = current_time
             
     # תיקון כדי שניתוק מהחשמל ייתן ארכה של כמה שניות לפני כיבוי    
     ####if last_voltage > max_battery_v and current_voltage < max_battery_v and abs(last_voltage - current_voltage) > 0.5:
@@ -1974,45 +1977,15 @@ def main_main():
         # בהירות המסך היא חצי מהבהירות המקסימלית אם מחובר לחשמל ורבע אם מחובר לסוללה
         duty_for_backligth = 500 if current_is_charging else 255
         # הפעלת בהירות המסך המתאימה
-        BACKLIGHT.duty(duty_for_backligth)
+        BACKLIGHT.duty(duty_for_backligth) 
         
-        ####################################################################################################
-        # זה גורם שאם מחברים את BME280 באמצע פעולת שעון ההלכה התוכנה תהפוך למד טמפרטורה
-        # בכל מקרה ניתן לשקול לבטל את הקטע הזה אם מעמיס בבדיקות מיותרות או פוגע במשהו
-        if not is_bme280_connected:
-            try:
-                # אני מניח ש BME280 מחובר ל original_i2c כדי לחסוך בבדיקות, אבל אפשר לבדוק עם check_i2c_device(bme280_bitname) כמו בתחילת הקוד
-                bme = bme280.BME280(i2c=original_i2c) 
-                is_bme280_connected = True
-                ################################################################################
-                # החזרת מיקום ברירת המחדל להיות המיקום הנוכחי
-                # אם לא עושים את זה הזמן יהיה במיקום שמוגדר בשעון ההלכה ברגע חיבור חיישן הטמפרטורה
-                go_to_default_location()
-                #################################################################################
-            except:
-                bme = False
-                is_bme280_connected = False    
-        #####################################################################################################  
+        ##########################################################
+        # הפעלת הפונקצייה הראשית והשהייה קטנה לפני שחוזרים עליה שוב
+        main_halach_clock()
+        time.sleep(0.825)  # רענון כל שנייה אבל צריך לכוון את זה לפי כמה כבד הקוד עד שהתצוגה בפועל תתעדכן כל שנייה ולא יותר ולא בפחות
+        gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
+        ##########################################################
         
-        # אם נמצא בהפעלת המכשיר ש BME280 מחובר אז התוכנה מתפקדת כמד טמפרטורה
-        # אבל זה חייב להיות בניסיון כי ייתכן שהיה מחובר וכעת מנותק ואז נקבל שגיאה
-        # בכל מקרה אם מתקבלת שגיאה סימן שמנותק ולכן מגדירים את המשתנה לומר שמנותק ואז בשנייה הבאה יוצג שעון ההלכה
-        if is_bme280_connected:
-            try:
-                main_bme280()
-                time.sleep(1) # עדכון כל שניה
-                gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
-            except Exception as e:
-                print("שגיאת BME280", e) # Errno 19] ENODEV זו שגיאה שאומרת שהחיישן לא מחובר
-                is_bme280_connected = False
-        
-        # אם BME280 לא מחובר אז התוכנה מתפקדת כשעון ההלכה
-        else:
-            # הפעלת הפונקצייה הראשית והשהייה קטנה לפני שחוזרים עליה שוב
-            main_halach_clock()
-            time.sleep(0.825)  # רענון כל שנייה אבל צריך לכוון את זה לפי כמה כבד הקוד עד שהתצוגה בפועל תתעדכן כל שנייה ולא יותר ולא בפחות
-            gc.collect() # ניקוי הזיכרון חשוב נורא כדי למנוע קריסות
-            
     # אם הכוח לא פועל אז יש לכבות הכל
     else:
         # כניסה למצב שינה
@@ -2175,5 +2148,3 @@ def handle_button_press(specific_button):
     
     return None  # במידה ולא זוהתה לחיצה
     '''
-
-
