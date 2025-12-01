@@ -8,7 +8,7 @@
 # ========================================================
 
 # משתנה גלובלי שמציין את גרסת התוכנה למעקב אחרי עדכונים
-VERSION = "1/12/2025-BME"
+VERSION = "1/12/2025"
 
 ######################################################################################################################
 
@@ -978,6 +978,8 @@ settings_dict = {
     "misheiacir_deg": -10.5, # מה גובה השמש בשעת משיכיר. קובע להדפסת הזמנים
     "hesberim_mode": "hesberim", # "hesberim" or "zmanim", or "clocks"
     "default_location_index": jerusalem_index, # אינדקס מיקום ברירת המחדל בקובץ המיקומים. כרגע מוגדר ירושלים.
+    "auto_deepsleep_seconds": 200, # זה זמן מתאים להצגת כל שורת ההסברים
+    "screen_brightness": 255, # ערך בין 0 ל- 1023. ערך 255 הוא הרגיל בזמן שלא מחובר לחשמל לחיסכון בסוללה אך מספיק קריא 
 }
 
 # יצירת עותק ששומר את ההגדרות היפולטיביות הנ"ל. כי ההגדרות הנל משתנות במהלך פעילות התוכנה
@@ -1603,15 +1605,17 @@ start_time_for_automatic_deepsleep = t_time
 ##############################################
 
 # הפעלה של התפריט
-def menu_settings_loop(only_key=None):
+# לאונלי קייס אפשר לתת רשימה, או שזה ברירת מחדל הכל לפי None
+def menu_settings_loop(only_keys=None):
 
     # כל האפשרויות – לא צריך לטעון מהפעם הקודמת
     menu_items = [
-        {"title": "בחר שיטת זריחה ושקיעה", "key": "rise_set_deg", "options": [0, -0.833], "suffix": "°"},
+        {"title": "בחר שיטת זריחה ושקיעה", "key": "rise_set_deg", "options": [-0.833, 0], "suffix": "°"},
         {"title": "בחר שיטת מגא ועלות", "key": "mga_deg", "options": [-16, -19.75], "suffix": "°"},
         {"title": "בחר שיטת כוכבים", "key": "hacochavim_deg", "options": [-4.61, -3.65, -6, -8.5], "suffix": "°"},
         {"title": "בחר שיטת משיכיר", "key": "misheiacir_deg", "options": [-10.5, -10.0, -11.5], "suffix": "°"},
-        #{"title": "בחר בהירות מסך", "key": "screen_brightness", "options": [100, 250, 500, 1000], "suffix": ""},
+        {"title": "בחר בהירות מסך", "key": "screen_brightness", "options": [255, 1, 500, 1023], "suffix": ""}, #0-1023
+        {"title": "בחר שניות לכיבוי מסך", "key": "auto_deepsleep_seconds", "options": [200, 20, 600, 50000], "suffix": ""},
         {"title": "בחר מה להציג בשורה", "key": "hesberim_mode", "options": ["hesberim", "zmanim", "clocks", "zmanim_with_clocks"], "suffix": ""},
     ]
     
@@ -1621,10 +1625,12 @@ def menu_settings_loop(only_key=None):
         "clocks": reverse("שעונים"),
         "zmanim_with_clocks": reverse("זמנים עם שעונים"),
         "screen_brightness": reverse("בהירות מסך"),
+        "auto_deepsleep_seconds": reverse("שניות לכיבוי אוטומטי"),
     }
     
-    if only_key is not None:
-        menu_items = [item for item in menu_items if item["key"] == only_key]
+    if only_keys is not None:
+        #menu_items = [item for item in menu_items if item["key"] == only_key]
+        menu_items = [item for item in menu_items if item["key"] in only_keys]
         if not menu_items:
             print(f"שגיאה: לא נמצא פריט עם המפתח {only_key}")
             return
@@ -1735,7 +1741,8 @@ def show_current_settings():
         "misheiacir_deg": "משיכיר",
         "hesberim_mode": "מצב תצוגה",
         "default_location_index": "מיקום ברירת מחדל",
-        "screen_brightness": reverse("בהירות מסך"),
+        "screen_brightness": "בהירות מסך",
+        "auto_deepsleep_seconds": "שניות לכיבוי אוטומטי",
     }
 
     modes_hebrew = {
@@ -1748,6 +1755,10 @@ def show_current_settings():
 
     # מעבר על כל מפתח במילון והצגתו
     for key, value in settings_dict.items():
+        ###################################################
+        if key == "default_location_index" or key == "hesberim_mode":
+            continue # לדלג כי אין מקום להציג הכל וזה פחות דחוף
+        ######################################################
         if key == "default_location_index":
             value = reverse(locations[value]["heb_name"])
         elif key == "hesberim_mode":
@@ -1771,9 +1782,9 @@ def main_menu():
         {"title": "הגדרת מיקום נוכחי כברירת מחדל", "action": "update_location"},
         {"title": "עדכון הזמן", "action": "update_time"},
         {"title": "הצגת הגדרות נוכחיות", "action": "show_settings"},
-        {"title": "הגדרת שורת ההסברים", "action": "update_hesberim_mode"},
-        {"title": "בחירת והגדרת כל ההגדרות", "action": "update_settings"}, 
-        {"title": "אודות", "action": "show_about"},
+        {"title": "שינוי הגדרות תצוגה", "action": "update_display_settings"},
+        {"title": "שינוי הגדרות זמני הלכה", "action": "update_halachic_times_settings"}, 
+        {"title": "אודות שעון ההלכה", "action": "show_about"},
         {"title": "יציאה", "action": "return"},
     ]
 
@@ -1829,10 +1840,10 @@ def main_menu():
                 save_default_location(location_index)
             if selected["action"] == "update_time":
                 check_and_set_time(Force_update = True)
-            elif selected["action"] == "update_settings":
-                menu_settings_loop()
-            elif selected["action"] == "update_hesberim_mode":
-                menu_settings_loop("hesberim_mode")
+            elif selected["action"] == "update_display_settings":
+                menu_settings_loop(only_keys=["hesberim_mode", "auto_deepsleep_seconds", "screen_brightness"])
+            elif selected["action"] == "update_halachic_times_settings":
+                menu_settings_loop(only_keys=["rise_set_deg", "mga_deg", "hacochavim_deg", "misheiacir_deg"])
             elif selected["action"] == "show_settings":
                 show_current_settings()
             elif selected["action"] == "show_about":
@@ -1947,9 +1958,10 @@ def main_main():
     # אם מוגדר שינה אוטומטית והמתח מראה שמחובר לסוללה ולא לחשמל ועברו ... דקות מאז הפעלת התוכנה אז מגדירים את המשתנה power_state לכבות את המכשיר
     # המשתנה automatic_deepsleep מוגדר בפונקציית main_halach_clock שבשבת וחג לא מכבים את המסך או נכנסים למצב שינה
     # בתחילה מגדירים משתנה מאוד חשוב שקובע אחרי כמה זמן ניכנס למצב שינה או למסך כבוי באופן אוטומטי
-    # כרגע מוגדר ל 200 שניות כי אחרת לא יוכלו לראות את כל ההסברים אם ייכבה קודם
-    seconsd_to_start_auto_deepsleep = 200 
-    if automatic_deepsleep and not current_is_charging and (current_time - start_time_for_automatic_deepsleep) >= seconsd_to_start_auto_deepsleep:
+    # זה לפי מה שבהגדרות אבל בודק שהערך לא קטן מ 20 כדי שלא ניכנס לבעיה חמורה של כניסה מיידית למצב שינה וחוזר חלילה
+    # הערך העליון ניתן לשינוי לכמה שרוצים להכריח
+    auto_deepsleep_seconds = duty_for_backligth = max(20, min(50000, settings_dict["auto_deepsleep_seconds"]))
+    if automatic_deepsleep and not current_is_charging and (current_time - start_time_for_automatic_deepsleep) >= auto_deepsleep_seconds:
         power_state = False
     
     ##############################################
@@ -1975,7 +1987,8 @@ def main_main():
             start_time_for_check_and_set_time = current_time
             
         # בהירות המסך היא חצי מהבהירות המקסימלית אם מחובר לחשמל ורבע אם מחובר לסוללה
-        duty_for_backligth = 500 if current_is_charging else 255
+        # לפי ההגדרות, אבל אסור פחות מ 1 ולא יותר מ- 1023
+        duty_for_backligth = max(1, min(1023, settings_dict["screen_brightness"]))
         # הפעלת בהירות המסך המתאימה
         BACKLIGHT.duty(duty_for_backligth) 
         
