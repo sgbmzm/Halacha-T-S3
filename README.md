@@ -33,9 +33,10 @@ https://github.com/Xinyuan-LilyGO/T-Display-S3/issues/313
 
 BATTERY:
 
-<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/26914297-d219-45e3-bc1d-647149551e24" />
+![A6b3ef4dbb0394ad195ca8c3004ead0fc0](https://github.com/user-attachments/assets/5eb035a8-2d53-457b-b135-29af44a285bd)
 
-**Please note: You need to request that the order of the wires be reversed, opposite of what is shown here in the picture**
+
+**Please note: You need to request that the order of the wires be as shown here in the picture**
 
 5 pcs 3.7V 650mAh Lipo Polymer Lithium Rechargeable Battery + JST 1.25mm 2pin Plug 602248 For MP3 GPS Recorder Headset Camera
 
